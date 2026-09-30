@@ -1,0 +1,1 @@
+{"id":"launcher-display-name","name":"Change launcher display name","version":"1.0.0","kind":"general","description":"Changes the launcher label of the generated wrapper.","targets":{},"dependencies":[],"operations":[{"type":"wrapper.setLauncherLabel","option":"displayName"}]}

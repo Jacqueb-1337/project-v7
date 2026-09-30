@@ -1,0 +1,26 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project V7 Tested Compatibility Profile",
+  "type": "object",
+  "required": ["id", "packageId", "recommendedModules", "blacklist"],
+  "properties": {
+    "id": { "type": "string" },
+    "packageId": { "type": "string" },
+    "versions": { "type": "array", "items": { "type": "string" } },
+    "abis": { "type": "array", "items": { "type": "string" } },
+    "engines": { "type": "array", "items": { "type": "string" } },
+    "recommendedModules": { "type": "array", "items": { "type": "string" } },
+    "blacklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["moduleId"],
+        "properties": {
+          "moduleId": { "type": "string" },
+          "reason": { "type": "string" },
+          "whenAnySelected": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

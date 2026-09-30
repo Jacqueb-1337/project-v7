@@ -1,0 +1,1 @@
+{"id":"core-compat","name":"Core Compatibility","version":"1.0.0","kind":"general","description":"Project V7 runtime and generic ARM32-on-64-bit compatibility layer.","targets":{},"dependencies":[],"operations":[{"type":"runtime.enableCoreCompatibility"}]}

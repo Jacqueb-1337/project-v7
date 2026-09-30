@@ -1,0 +1,19 @@
+﻿{
+  "id": "unity-4.6-compat",
+  "name": "Unity 4.6 Compatibility",
+  "version": "1.0.0",
+  "kind": "general",
+  "category": "Engine compatibility",
+  "description": "General Project V7 compatibility policy for ARMv7 games built with Unity 4.6.x. Suggested automatically when that engine family is detected and no game-tested profile overrides it.",
+  "targets": {
+    "abis": ["armeabi-v7a"],
+    "engines": ["unity"],
+    "engineVersions": ["4.6.*"]
+  },
+  "suggestedWhenMatched": true,
+  "dependencies": ["core-compat"],
+  "conflicts": [],
+  "operations": [
+    { "type": "compat.module", "value": "unity-4.6" }
+  ]
+}

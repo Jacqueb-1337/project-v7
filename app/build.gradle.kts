@@ -146,6 +146,7 @@ val translationTags = translations.joinToString(prefix = "{", postfix = "}") { (
 }
 
 android {
+    sourceSets["main"].assets.srcDir(rootProject.file("catalog"))
     namespace = "app.morphe.manager"
     compileSdk = 37
 
@@ -264,6 +265,8 @@ android {
         @Suppress("UnstableApiUsage")
         generateLocaleConfig = true
     }
+
+    sourceSets.getByName("main").assets.srcDir(rootProject.file("modules"))
 
     buildFeatures {
         compose = true

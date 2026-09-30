@@ -1,0 +1,1 @@
+{"id":"wrapper-package-id","name":"Change wrapper package ID","version":"1.0.0","kind":"general","description":"Overrides the Android application ID of the generated wrapper.","targets":{},"dependencies":[],"operations":[{"type":"wrapper.setPackageId","option":"packageId"}]}

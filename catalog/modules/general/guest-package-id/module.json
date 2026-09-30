@@ -1,0 +1,1 @@
+{"id":"guest-package-id","name":"Override guest package identity","version":"1.0.0","kind":"general","description":"Changes the package identity exposed to the translated guest without changing the wrapper package.","targets":{},"dependencies":[],"operations":[{"type":"guest.setPackageId","option":"guestPackageId"}]}
