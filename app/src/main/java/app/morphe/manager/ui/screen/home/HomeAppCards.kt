@@ -292,7 +292,7 @@ private fun InstalledAppCard(
     val version = remember(item) { item.version.withVersionPrefix() }
     // What tells the app from a namesake leads the row, ahead of the version
     val subtitle = remember(item) {
-        listOfNotNull(item.nameSuffix, version.ifEmpty { null }).joinToString(" Ã¢â‚¬Â¢ ")
+        listOfNotNull(item.nameSuffix, version.ifEmpty { null }).joinToString(" \u2022 ")
     }
 
     // The version worth badging, out of the one the sources support: only when it is short enough
@@ -493,7 +493,7 @@ private fun NotPatchedAppCard(
     // rather than by an install, and that version answers a different question
     val subtitle = remember(item, notPatchedText) {
         val version = item.version.takeIf { item.isInstalledOnDevice && it.isNotEmpty() }
-        listOfNotNull(item.nameSuffix, version?.withVersionPrefix(), notPatchedText).joinToString(" Ã¢â‚¬Â¢ ")
+        listOfNotNull(item.nameSuffix, version?.withVersionPrefix(), notPatchedText).joinToString(" \u2022 ")
     }
 
     val contentDesc = remember(item.displayName, subtitle) {
