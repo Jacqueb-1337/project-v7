@@ -161,7 +161,7 @@ private fun homeAppCardStyle(subtitleAlpha: Float = 0.75f): HomeAppCardStyle {
  *   null renders the glass placeholder without resolving an icon.
  * @param packageInfo    Resolved [PackageInfo]; when non-null [packageName] is ignored for the icon.
  * @param displayName    Primary label shown in bold.
- * @param subtitle       Secondary line shown below [displayName]; null → not rendered.
+ * @param subtitle       Secondary line shown below [displayName]; null Ã¢â€ â€™ not rendered.
  * @param gradientColors Gradient palette forwarded to [AppIcon] placeholder, unless the user
  *   picked fixed card colors in the appearance settings.
  */
@@ -171,7 +171,8 @@ internal fun RowScope.AppCardContent(
     packageInfo: PackageInfo?,
     displayName: String,
     subtitle: String?,
-    gradientColors: List<Color>
+    gradientColors: List<Color>,
+    iconUrl: String? = null
 ) {
     val cardStyle = homeAppCardStyle().onCard(gradientColors)
 
@@ -179,6 +180,7 @@ internal fun RowScope.AppCardContent(
         packageInfo = packageInfo,
         packageName = if (packageInfo == null) packageName else null,
         contentDescription = null,
+        remoteIconUrl = iconUrl,
         modifier = Modifier.size(cardStyle.iconSize),
         preferredSource = AppDataSource.PATCHED_APK,
         placeholderGradientColors = cardStyle.cardColors(gradientColors)
@@ -290,7 +292,7 @@ private fun InstalledAppCard(
     val version = remember(item) { item.version.withVersionPrefix() }
     // What tells the app from a namesake leads the row, ahead of the version
     val subtitle = remember(item) {
-        listOfNotNull(item.nameSuffix, version.ifEmpty { null }).joinToString(" • ")
+        listOfNotNull(item.nameSuffix, version.ifEmpty { null }).joinToString(" Ã¢â‚¬Â¢ ")
     }
 
     // The version worth badging, out of the one the sources support: only when it is short enough
@@ -360,6 +362,7 @@ private fun InstalledAppCard(
             // its own, which is regularly the whole point of keeping several copies of an app apart
             packageName = installedApp.currentPackageName,
             contentDescription = null,
+            remoteIconUrl = item.iconUrl,
             modifier = Modifier.size(cardStyle.iconSize),
             preferredSource = AppDataSource.INSTALLED,
             // A record can outlive every artifact carrying its icon, and the glass placeholder is
@@ -490,7 +493,7 @@ private fun NotPatchedAppCard(
     // rather than by an install, and that version answers a different question
     val subtitle = remember(item, notPatchedText) {
         val version = item.version.takeIf { item.isInstalledOnDevice && it.isNotEmpty() }
-        listOfNotNull(item.nameSuffix, version?.withVersionPrefix(), notPatchedText).joinToString(" • ")
+        listOfNotNull(item.nameSuffix, version?.withVersionPrefix(), notPatchedText).joinToString(" Ã¢â‚¬Â¢ ")
     }
 
     val contentDesc = remember(item.displayName, subtitle) {
@@ -512,6 +515,7 @@ private fun NotPatchedAppCard(
             displayName = item.displayName,
             subtitle = subtitle,
             gradientColors = item.gradientColors,
+            iconUrl = item.iconUrl,
         )
     }
 }
@@ -589,7 +593,7 @@ internal fun AppCardLayout(
                     end   = Offset(endEdgeX(w, rtl), 0f)
                 )
 
-                // Border: bright top-start → faded bottom-end
+                // Border: bright top-start Ã¢â€ â€™ faded bottom-end
                 val border = Brush.linearGradient(
                     colors = listOf(
                         Color.White.copy(alpha = 0.65f),

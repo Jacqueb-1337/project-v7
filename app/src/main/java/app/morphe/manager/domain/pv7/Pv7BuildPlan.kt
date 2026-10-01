@@ -3,13 +3,17 @@ package app.morphe.manager.domain.pv7
 import android.content.Context
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 data class Pv7RequiredOption(
     val moduleId: String,
     val operationType: String,
     val optionKey: String
-)
+) {
+    val storageKey: String get() = pv7OptionKey(moduleId, optionKey)
+}
+
+fun pv7OptionKey(moduleId: String, optionKey: String): String =
+    moduleId + ":" + optionKey
 
 data class Pv7BuildPlan(
     val selectedModuleIds: Set<String>,
@@ -82,6 +86,7 @@ class Pv7BuildPlanner(private val context: Context) {
                     }
                     "wrapper.setPackageId",
                     "wrapper.setLauncherLabel",
+                    "wrapper.setLauncherIcon",
                     "guest.setPackageId" -> {
                         val option = operation.option?.takeIf { it.isNotBlank() }
                             ?: throw IllegalStateException(

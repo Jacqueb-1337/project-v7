@@ -1,5 +1,6 @@
 package app.morphe.manager.ui.screen.home
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,12 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.morphe.manager.domain.pv7.Pv7ModuleBadge
+import app.morphe.manager.domain.pv7.Pv7PatchOperation
 import app.morphe.manager.domain.pv7.Pv7ResolutionPlan
+import app.morphe.manager.domain.pv7.pv7OptionKey
 import app.morphe.manager.ui.screen.shared.AppDialog
 import app.morphe.manager.ui.screen.shared.AppDialogButtonRow
+import app.morphe.manager.ui.screen.shared.AppDialogTextField
 import app.morphe.manager.ui.screen.shared.DialogPadding
 import app.morphe.manager.ui.screen.shared.SemanticTone
 import app.morphe.manager.ui.screen.shared.StatusBadge
+import app.morphe.manager.util.IMAGE_MIMETYPE
+import app.morphe.manager.util.rememberAdaptiveFilePicker
 
 @Composable
 internal fun Pv7CompatibilityDialog(
@@ -37,8 +42,11 @@ internal fun Pv7CompatibilityDialog(
     version: String?,
     resolution: Pv7ResolutionPlan,
     explicitModuleIds: Set<String>,
+    optionValues: Map<String, String>,
     catalogIssues: List<String>,
     onToggleModule: (String) -> Unit,
+    onOptionChange: (String, String, String) -> Unit,
+    onCustomIconPicked: (String, String, Uri) -> Unit,
     onProceed: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -46,13 +54,28 @@ internal fun Pv7CompatibilityDialog(
         it.selected || it.badge != Pv7ModuleBadge.UNTESTED
     }
     val testedRecommendations = resolution.profile?.recommendedModules.orEmpty().toSet()
+    val missingOptions = shownModules
+        .filter { it.selected }
+        .flatMap { row ->
+            row.manifest.operations.mapNotNull { operation ->
+                val optionKey = operation.option?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                when (operation.type) {
+                    "wrapper.setPackageId",
+                    "wrapper.setLauncherLabel",
+                    "wrapper.setLauncherIcon",
+                    "guest.setPackageId" -> pv7OptionKey(row.manifest.id, optionKey)
+                    else -> null
+                }
+            }
+        }
+        .any { optionValues[it].isNullOrBlank() }
 
     AppDialog(
         onDismissRequest = onDismiss,
         title = "Project V7 compatibility",
         description = buildString {
             append(packageName)
-            if (!version.isNullOrBlank()) append(" • ").append(version)
+            if (!version.isNullOrBlank()) append(" | ").append(version)
         },
         padding = DialogPadding.Compact,
         scrollable = false,
@@ -60,6 +83,7 @@ internal fun Pv7CompatibilityDialog(
             AppDialogButtonRow(
                 primaryText = "Continue",
                 onPrimaryClick = onProceed,
+                primaryEnabled = !missingOptions,
                 secondaryText = "Cancel",
                 onSecondaryClick = onDismiss
             )
@@ -116,7 +140,7 @@ internal fun Pv7CompatibilityDialog(
                         )
                         allIssues.forEach { issue ->
                             Text(
-                                text = "• " + issue,
+                                text = "- " + issue,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -157,17 +181,11 @@ internal fun Pv7CompatibilityDialog(
                         )
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = module.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            Text(
+                                text = module.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
                             if (module.description.isNotBlank()) {
                                 Spacer(Modifier.height(3.dp))
                                 Text(
@@ -182,29 +200,26 @@ internal fun Pv7CompatibilityDialog(
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 when {
-                                    isRequired -> StatusBadge(
-                                        text = "Required",
-                                        tone = SemanticTone.Warning
-                                    )
-                                    isRecommended -> StatusBadge(
-                                        text = "Recommended",
-                                        tone = SemanticTone.Primary
-                                    )
-                                    isSuggested -> StatusBadge(
-                                        text = "Suggested",
-                                        tone = SemanticTone.Success
-                                    )
-                                    else -> StatusBadge(
-                                        text = "Optional",
-                                        tone = SemanticTone.Neutral
-                                    )
+                                    isRequired -> StatusBadge("Required", tone = SemanticTone.Warning)
+                                    isRecommended -> StatusBadge("Recommended", tone = SemanticTone.Primary)
+                                    isSuggested -> StatusBadge("Suggested", tone = SemanticTone.Success)
+                                    else -> StatusBadge("Optional", tone = SemanticTone.Neutral)
                                 }
-                                StatusBadge(
-                                    text = module.version,
-                                    tone = SemanticTone.Neutral
-                                )
+                                StatusBadge(module.version, tone = SemanticTone.Neutral)
                             }
                         }
+                    }
+                }
+
+                if (row.selected) {
+                    module.operations.forEach { operation ->
+                        Pv7OperationOptionEditor(
+                            moduleId = module.id,
+                            operation = operation,
+                            optionValues = optionValues,
+                            onOptionChange = onOptionChange,
+                            onCustomIconPicked = onCustomIconPicked
+                        )
                     }
                 }
 
@@ -216,6 +231,14 @@ internal fun Pv7CompatibilityDialog(
                 }
             }
 
+            if (missingOptions) {
+                Text(
+                    text = "Configure the selected options before continuing.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
             if (shownModules.isEmpty()) {
                 Text(
                     text = "No Project V7 compatibility modules matched this APK.",
@@ -224,5 +247,51 @@ internal fun Pv7CompatibilityDialog(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun Pv7OperationOptionEditor(
+    moduleId: String,
+    operation: Pv7PatchOperation,
+    optionValues: Map<String, String>,
+    onOptionChange: (String, String, String) -> Unit,
+    onCustomIconPicked: (String, String, Uri) -> Unit
+) {
+    val optionKey = operation.option?.takeIf { it.isNotBlank() } ?: return
+    val label = when (operation.type) {
+        "wrapper.setPackageId" -> "Wrapper package ID"
+        "wrapper.setLauncherLabel" -> "Launcher name"
+        "guest.setPackageId" -> "Guest package ID"
+        "wrapper.setLauncherIcon" -> "Wrapper launcher icon"
+        else -> return
+    }
+    val storageKey = pv7OptionKey(moduleId, optionKey)
+    val value = optionValues[storageKey].orEmpty()
+
+    if (operation.type == "wrapper.setLauncherIcon") {
+        val picker = rememberAdaptiveFilePicker(
+            mimeTypes = arrayOf(IMAGE_MIMETYPE),
+            onResult = { uri -> uri?.let { onCustomIconPicked(moduleId, optionKey, it) } }
+        )
+        AppDialogTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = value,
+            onValueChange = { onOptionChange(moduleId, optionKey, it) },
+            label = { Text(label) },
+            placeholder = { Text("Choose an image") },
+            isError = value.isBlank(),
+            showClearButton = true,
+            onFilePickerClick = picker
+        )
+    } else {
+        AppDialogTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = value,
+            onValueChange = { onOptionChange(moduleId, optionKey, it) },
+            label = { Text(label) },
+            isError = value.isBlank(),
+            showClearButton = true
+        )
     }
 }

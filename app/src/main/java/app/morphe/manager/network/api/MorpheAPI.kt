@@ -69,7 +69,7 @@ internal fun parseReleaseAssetUrl(downloadUrl: String): ReleaseAssetRef? {
  *  - Fetching and parsing CHANGELOG.md files from repositories
  *  - Resolving GitHub pull request build artifacts
  *
- * All methods return [APIResponse] or nullable results — no exceptions propagate to callers
+ * All methods return [APIResponse] or nullable results Ã¢â‚¬â€ no exceptions propagate to callers
  * except [getAssetFromPullRequest], which throws on hard failure.
  */
 class MorpheAPI(
@@ -102,7 +102,7 @@ class MorpheAPI(
     @PublishedApi
     internal var rejectedPat: String? = null
 
-    // Lazy so URL parsing doesn't happen on construction — only when first needed
+    // Lazy so URL parsing doesn't happen on construction Ã¢â‚¬â€ only when first needed
     private val managerConfig: RepoConfig by lazy { parseRepoUrl(MANAGER_REPO_URL) }
     private val patchesConfig: RepoConfig by lazy { parseRepoUrl(SOURCE_REPO_URL) }
 
@@ -196,7 +196,7 @@ class MorpheAPI(
 
     /**
      * Fetches a raw file directly from GitHub (raw.githubusercontent.com).
-     * Does not attach auth headers — raw files are always public.
+     * Does not attach auth headers Ã¢â‚¬â€ raw files are always public.
      */
     private suspend inline fun <reified T> rawPatchesBundleRequest(
         config: RepoConfig,
@@ -292,7 +292,7 @@ class MorpheAPI(
         return MorpheAsset(
             downloadUrl = releaseInfo.downloadUrl,
             createdAt = parseTimestamp(releaseInfo.createdAt),
-            // Treat empty string the same as absent — some JSON files emit ""
+            // Treat empty string the same as absent Ã¢â‚¬â€ some JSON files emit ""
             signatureDownloadUrl = releaseInfo.signatureDownloadUrl?.ifBlank { null },
             pageUrl = releasePageUrl(config.htmlUrl, version),
             description = releaseInfo.description,
@@ -333,19 +333,19 @@ class MorpheAPI(
             timestamp.endsWith("Z", ignoreCase = true) -> timestamp
             timestamp.contains("+") -> timestamp
             timestamp.contains("T") && timestamp.lastIndexOf("-") > 10 -> timestamp
-            else -> "${timestamp}Z" // no timezone info — assume UTC
+            else -> "${timestamp}Z" // no timezone info Ã¢â‚¬â€ assume UTC
         }
         return Instant.parse(normalized).toLocalDateTime(TimeZone.UTC)
     }
 
-    /** Ensures a version string is prefixed with `v` (e.g. `1.2.3` → `v1.2.3`). */
+    /** Ensures a version string is prefixed with `v` (e.g. `1.2.3` Ã¢â€ â€™ `v1.2.3`). */
     private fun normalizeVersion(version: String): String =
         if (version.startsWith("v")) version else "v$version"
 
     /** Returns true if [asset] looks like an Android APK by name or content-type. */
     private fun isManagerAsset(asset: GitHubAsset): Boolean =
-        asset.name.endsWith(".apk", ignoreCase = true) ||
-                asset.contentType?.contains("android.package-archive", ignoreCase = true) == true
+        asset.name.startsWith("project-v7-patcher-", ignoreCase = true) &&
+            asset.name.endsWith(".apk", ignoreCase = true)
 
     /** True when the currently installed manager is a dev/pre-release build. */
     val isDevBuild: Boolean
@@ -360,7 +360,7 @@ class MorpheAPI(
     /**
      * Fetches manager metadata from the static JSON endpoint (bypasses GitHub API rate limits).
      *
-     * [branch] determines which JSON URL is used (`dev` → prerelease, anything else → stable).
+     * [branch] determines which JSON URL is used (`dev` Ã¢â€ â€™ prerelease, anything else Ã¢â€ â€™ stable).
      * The request is cache busted because the raw CDN serves stale copies of freshly pushed files.
      */
     private suspend fun getManagerFromJson(branch: String): APIResponse<MorpheAsset> {
@@ -371,7 +371,7 @@ class MorpheAPI(
         }) {
             is APIResponse.Success -> runCatching {
                 mapManagerJsonToAsset(managerConfig, response.data).also {
-                    Log.d(tag, "Manager JSON ($branch): ${it.version} → ${it.downloadUrl}")
+                    Log.d(tag, "Manager JSON ($branch): ${it.version} Ã¢â€ â€™ ${it.downloadUrl}")
                 }
             }.fold(
                 onSuccess = { APIResponse.Success(it) },
@@ -390,8 +390,8 @@ class MorpheAPI(
      * Returns a newer [MorpheAsset] if one is available, or null if the app is up to date.
      *
      * Channel selection logic (mirrors FCM subscription matrix in [app.morphe.manager.util.syncFcmTopics]):
-     *  - `usePrereleases == true` OR current build is dev → use `dev` branch / prerelease channel
-     *  - Otherwise → use `main` branch / stable channel
+     *  - `usePrereleases == true` OR current build is dev Ã¢â€ â€™ use `dev` branch / prerelease channel
+     *  - Otherwise Ã¢â€ â€™ use `main` branch / stable channel
      *
      * Update sources:
      *  - Primary: static JSON file ([USE_MANAGER_DIRECT_JSON] == true)
@@ -469,7 +469,7 @@ class MorpheAPI(
         return when (val r = rawPatchesBundleRequest<PatchesReleaseInfo>(patchesConfig, branch)) {
             is APIResponse.Success -> runCatching {
                 mapPatchesJsonToAsset(patchesConfig, r.data).also {
-                    Log.d(tag, "Patches JSON ($branch): ${it.version} → ${it.downloadUrl}")
+                    Log.d(tag, "Patches JSON ($branch): ${it.version} Ã¢â€ â€™ ${it.downloadUrl}")
                 }
             }.fold(
                 onSuccess = { APIResponse.Success(it) },
@@ -490,7 +490,7 @@ class MorpheAPI(
      * [usePrerelease] is passed explicitly so each bundle can track its own channel
      * independently (one bundle may use stable while another uses dev).
      *
-     * Source priority: static JSON → Morphe API (fallback).
+     * Source priority: static JSON Ã¢â€ â€™ Morphe API (fallback).
      */
     suspend fun getPatchesUpdate(usePrerelease: Boolean): APIResponse<MorpheAsset> {
         return if (USE_PATCHES_DIRECT_JSON) {
@@ -595,10 +595,10 @@ class MorpheAPI(
      * Examples:
      * ```
      * https://raw.githubusercontent.com/MorpheApp/morphe-patches/main/patches-bundle.json
-     * → https://raw.githubusercontent.com/MorpheApp/morphe-patches/main/CHANGELOG.md
+     * Ã¢â€ â€™ https://raw.githubusercontent.com/MorpheApp/morphe-patches/main/CHANGELOG.md
      *
      * https://github.com/MorpheApp/morphe-patches/tree/main/...
-     * → https://raw.githubusercontent.com/MorpheApp/morphe-patches/main/CHANGELOG.md
+     * Ã¢â€ â€™ https://raw.githubusercontent.com/MorpheApp/morphe-patches/main/CHANGELOG.md
      * ```
      *
      * Returns null for unrecognized URL formats.
@@ -715,7 +715,7 @@ class MorpheAPI(
         ).successOrThrow("Artifacts for PR #$pullRequestNumber (run $runId)")
 
         return artifacts.artifacts.firstOrNull()
-            ?: throw Exception("No artifacts found for PR #$pullRequestNumber — did the GitHub Action run successfully?")
+            ?: throw Exception("No artifacts found for PR #$pullRequestNumber Ã¢â‚¬â€ did the GitHub Action run successfully?")
     }
 
     /**
@@ -726,7 +726,7 @@ class MorpheAPI(
 
     /**
      * Returns this response if successful; otherwise invokes [fallback] and returns its result.
-     * Used to chain primary → fallback data sources cleanly.
+     * Used to chain primary Ã¢â€ â€™ fallback data sources cleanly.
      */
     private inline fun <T> APIResponse<T>.fallbackTo(
         fallback: () -> APIResponse<T>

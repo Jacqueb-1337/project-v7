@@ -60,7 +60,7 @@ internal class HomeCardCache(private val file: File) {
 }
 
 /** Bumped when [CachedHome] changes shape, so older files are dropped. */
-private const val CACHE_FORMAT = 1
+private const val CACHE_FORMAT = 2
 
 @Serializable
 internal data class CachedHome(
@@ -107,6 +107,7 @@ internal data class CachedCard(
     val hasUpdate: Boolean,
     val versionStatus: CachedVersionStatus?,
     val isClone: Boolean,
+    val iconUrl: String? = null,
     val nameSuffix: String?
 ) {
     constructor(item: HomeAppItem) : this(
@@ -125,6 +126,7 @@ internal data class CachedCard(
         hasUpdate = item.hasUpdate,
         versionStatus = item.versionStatus?.let(::CachedVersionStatus),
         isClone = item.isClone,
+        iconUrl = item.iconUrl,
         nameSuffix = item.nameSuffix
     )
 
@@ -149,6 +151,7 @@ internal data class CachedCard(
         versionStatus = versionStatus?.toStatus(),
         patchCount = 0,
         isClone = isClone,
+        iconUrl = iconUrl,
         nameSuffix = nameSuffix
     )
 }

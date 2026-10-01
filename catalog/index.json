@@ -5,6 +5,7 @@
                     "modules/general/core-compat/module.json",
                     "modules/general/guest-package-id/module.json",
                     "modules/general/launcher-display-name/module.json",
+                    "modules/general/launcher-icon/module.json",
                     "modules/general/unity-4.6-compat/module.json",
                     "modules/general/wrapper-package-id/module.json"
                 ],

@@ -184,7 +184,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Handles add-source deep links from an explicit-package `intent://` fired by the website.
-     * Format: https://morphe.software/add-source?<github|gitlab>=owner/repo(&name=…)
+     * Format: https://morphe.software/add-source?<github|gitlab>=owner/repo(&name=â€¦)
      * Only GitHub and GitLab URLs are accepted.
      */
     private fun handleDeepLinkIntent(intent: Intent?, vm: MainViewModel) {
@@ -649,7 +649,8 @@ private fun MorpheManager(vm: MainViewModel) {
                                     selectedPatches = params.patches,
                                     options = params.options,
                                     targetPackageName = params.targetPackageName,
-                            pv7ModuleIds = params.pv7ModuleIds
+                            pv7ModuleIds = params.pv7ModuleIds,
+                                    pv7OptionValues = params.pv7OptionValues
                                 )
                             )
                         }

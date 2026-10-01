@@ -1,0 +1,15 @@
+{
+  "id": "launcher-icon",
+  "name": "Change wrapper launcher icon",
+  "version": "1.0.0",
+  "kind": "general",
+  "description": "Uses a custom launcher icon for the generated wrapper.",
+  "targets": {},
+  "dependencies": [],
+  "operations": [
+    {
+      "type": "wrapper.setLauncherIcon",
+      "option": "iconPath"
+    }
+  ]
+}

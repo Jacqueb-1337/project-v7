@@ -494,11 +494,11 @@ class HomeApps(
                 .takeIf { it in installedPackages }
                 ?.let { appDataResolver.resolveInstalled(it) }
             // The record's patch-time label first, it outlives the artifacts and the bundle
-            val displayName = installedApp?.appLabel
+            val displayName = pv7Meta?.displayName
+                ?: installedApp?.appLabel
                 ?: installedData?.displayName
                 ?: bundleMeta?.displayName
                 ?: allMetadata[packageName]?.displayName
-                ?: pv7Meta?.displayName
                 ?: KnownApps.getAppName(packageName)
             val trackedEntry = installedApp?.let { tracked ->
                 trackedSnapshots[tracked.currentPackageName]?.takeIf { it.app == tracked }
@@ -567,7 +567,8 @@ class HomeApps(
                     ignoredVersion = ignoredVersions[packageName]
                 ),
                 patchCount = 0,
-                isClone = slot.isClone
+                isClone = slot.isClone,
+                iconUrl = pv7Meta?.iconUrl
             )
         }
 
@@ -963,9 +964,9 @@ class HomeApps(
                 if (!isNewerVersion(storedVersion, currentVersion)) return@firstNotNullOfOrNull null
 
                 // Bundle is newer - refine with changelog if available.
-                // No changelog (null) → show badge (network error or local bundle).
-                // No resolvable app name → show badge (can't match scopes).
-                // Known name, no matching scope → no badge.
+                // No changelog (null) Ã¢â€ â€™ show badge (network error or local bundle).
+                // No resolvable app name Ã¢â€ â€™ show badge (can't match scopes).
+                // Known name, no matching scope Ã¢â€ â€™ no badge.
                 val unscoped = AppPatchUpdate(bundleUid, storedVersion)
                 val entries = changelogByUid[bundleUid] ?: return@firstNotNullOfOrNull unscoped
                 if (appNames.isEmpty()) return@firstNotNullOfOrNull unscoped
@@ -995,7 +996,7 @@ class HomeApps(
      *  2. System PM label (localized, may differ per user locale).
      *
      * Matching against any candidate is enough. This handles the common case where
-     * the PM label is localized ("Шахи") while the changelog scope uses the
+     * the PM label is localized ("ÃÂ¨ÃÂ°Ã‘â€¦ÃÂ¸") while the changelog scope uses the
      * canonical English name ("Chess.com"), and also tolerates author drift when
      * the bundle displayName and the changelog scope diverge slightly.
      */

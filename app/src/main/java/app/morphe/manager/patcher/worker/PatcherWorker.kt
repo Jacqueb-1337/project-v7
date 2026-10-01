@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -83,6 +84,7 @@ class PatcherWorker(
         val onProgress: ProgressEventHandler,
         val patchSources: List<PatchSourceRef> = emptyList(),
         val pv7ModuleIds: Set<String> = emptySet(),
+        val pv7OptionValues: Map<String, String> = emptyMap(),
         /**
          * Batch runs announce the whole queue once instead of every app, so the completion
          * tone and notification are suppressed per item.
@@ -175,7 +177,7 @@ class PatcherWorker(
     ) {
         val notificationManager =
             applicationContext.getSystemService(NotificationManager::class.java)
-        // Android won't visually switch from indeterminate → determinate on the same notification
+        // Android won't visually switch from indeterminate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ determinate on the same notification
         // ID unless we first post a brief non-indeterminate update. Post the real notification
         // directly - the determinate bar replaces the spinning one cleanly this way
         notificationManager.notify(NOTIFICATION_ID, createNotification(stepName, patchProgress, contentText))
@@ -379,8 +381,11 @@ class PatcherWorker(
                         " compat=" + pv7BuildPlan.compatModules.sorted().joinToString(",")
                 )
 
-                if (pv7BuildPlan.requiredOptions.isNotEmpty()) {
-                    val missing = pv7BuildPlan.requiredOptions.joinToString { requirement ->
+                val missingOptions = pv7BuildPlan.requiredOptions.filter { requirement ->
+                    args.pv7OptionValues[requirement.storageKey].isNullOrBlank()
+                }
+                if (missingOptions.isNotEmpty()) {
+                    val missing = missingOptions.joinToString { requirement ->
                         requirement.moduleId + "." + requirement.optionKey
                     }
                     throw IllegalStateException(
@@ -474,24 +479,77 @@ class PatcherWorker(
                         templateApk.outputStream().use(input::copyTo)
                     }
 
+                    fun optionValue(operationType: String): String? =
+                        pv7BuildPlan.requiredOptions
+                            .firstOrNull { it.operationType == operationType }
+                            ?.let { args.pv7OptionValues[it.storageKey] }
+                            ?.takeIf { it.isNotBlank() }
+
+                    val sourceInfo = pm.getPackageInfo(inputFile)
+                    val sourceLabel = sourceInfo
+                        ?.let { with(pm) { it.label() } }
+                        ?.takeIf { it.isNotBlank() }
+                        ?: args.packageName
+                    val sourceVersionName = sourceInfo?.versionName
+                        ?.takeIf { it.isNotBlank() }
+                        ?: args.input.version
+                    val sourceVersionCode = sourceInfo
+                        ?.let { pm.getVersionCode(it) }
+                        ?.coerceAtMost(Int.MAX_VALUE.toLong())
+                        ?.toInt()
+
+                    val customIcon = optionValue("wrapper.setLauncherIcon")?.let(::File)?.also {
+                        if (!it.isFile) {
+                            throw IllegalStateException("The selected Project V7 launcher icon no longer exists.")
+                        }
+                    }
+                    val launcherIcon = customIcon ?: sourceInfo?.applicationInfo
+                        ?.loadIcon(applicationContext.packageManager)
+                        ?.let { drawable ->
+                            val iconSize = maxOf(
+                                drawable.intrinsicWidth,
+                                drawable.intrinsicHeight,
+                                192
+                            ).coerceAtMost(512)
+                            val bitmap = drawable.toBitmap(iconSize, iconSize)
+                            val iconFile = File(pv7Work, "source-launcher-icon.png")
+                            iconFile.outputStream().use { stream ->
+                                check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream))
+                            }
+                            bitmap.recycle()
+                            iconFile
+                        }
+
                     val assembler = Pv7WrapperAssembler()
                     val guestPayload = assembler.extractLegacyUnityGuest(
                         inputApk = inputFile,
                         stagingRoot = File(pv7Work, "guest")
                     )
 
-                    val wrapperPackage = args.packageName + ".pv7"
+                    val wrapperPackage = optionValue("wrapper.setPackageId")
+                        ?: args.packageName + ".pv7"
+                    val launcherLabel = optionValue("wrapper.setLauncherLabel") ?: sourceLabel
+                    val guestPackage = optionValue("guest.setPackageId") ?: args.packageName
+
                     assembler.assembleFromTemplate(
                         templateApk = templateApk,
                         guestPayload = guestPayload,
                         outputApk = patchedApk,
-                        config = Pv7WrapperConfig(packageName = wrapperPackage),
+                        config = Pv7WrapperConfig(
+                            packageName = wrapperPackage,
+                            launcherLabel = launcherLabel,
+                            versionName = sourceVersionName,
+                            versionCode = sourceVersionCode,
+                            launcherIcon = launcherIcon,
+                            guestPackageName = guestPackage
+                        ),
                         assets = applicationContext.assets,
                         selectedModules = pv7BuildPlan.selectedModules
                     )
 
                     args.logger.info(
                         "PV7 wrapper assembled package=" + wrapperPackage +
+                            " label=\"" + launcherLabel + "\"" +
                             " modules=" + pv7BuildPlan.selectedModuleIds.sorted().joinToString(",")
                     )
                 } finally {

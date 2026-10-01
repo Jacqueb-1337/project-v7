@@ -13,10 +13,10 @@ import app.morphe.manager.util.KnownApps.getAppName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
-const val tag = "Morphe Manager"
+const val tag = "Project V7 Patcher"
 
 const val SOURCE_NAME = "Morphe Patches"
-const val MANAGER_REPO_URL = "https://github.com/MorpheApp/morphe-manager"
+const val MANAGER_REPO_URL = "https://github.com/Jacqueb-1337/project-v7"
 const val SOURCE_REPO_URL = "https://github.com/MorpheApp/morphe-patches"
 const val MORPHE_API_URL = "https://api.morphe.software"
 const val MORPHE_WEBSITE_URL = "https://morphe.software"
@@ -27,13 +27,13 @@ const val BLOCKED_SOURCES_URL = "$MORPHE_API_URL/v2/blocked-sources"
 const val ADD_SOURCE_PATH = "/add-source"
 
 /** Raw GitHub URL for the stable manager release JSON (main branch) */
-const val MANAGER_RELEASE_JSON_URL = "https://raw.githubusercontent.com/MorpheApp/morphe-manager/refs/heads/main/app-release.json"
+const val MANAGER_RELEASE_JSON_URL = "https://raw.githubusercontent.com/Jacqueb-1337/project-v7/refs/heads/main/app-release.json"
 
 /** Raw GitHub URL for the pre-release manager release JSON (dev branch) */
-const val MANAGER_PRERELEASE_JSON_URL = "https://raw.githubusercontent.com/MorpheApp/morphe-manager/refs/heads/dev/app-release.json"
+const val MANAGER_PRERELEASE_JSON_URL = "https://raw.githubusercontent.com/Jacqueb-1337/project-v7/refs/heads/dev/app-release.json"
 
 /** Controls whether manager updates are fetched directly from JSON files in the repository instead of using the GitHub API */
-const val USE_MANAGER_DIRECT_JSON = true
+const val USE_MANAGER_DIRECT_JSON = false
 
 /** Controls whether patches are fetched directly from JSON files in the repository instead of using the Morphe API */
 const val USE_PATCHES_DIRECT_JSON = true
@@ -87,7 +87,7 @@ object KnownApps {
 
     /**
      * Ordered list of shimmer placeholder gradient colors shown during cold-start loading.
-     * Uses each app's [Entry.brandColor] as the gradient start — actual bundle colors will
+     * Uses each app's [Entry.brandColor] as the gradient start â€” actual bundle colors will
      * replace them once the bundle loads. Falls back to [DEFAULT_COLORS] if no brand color
      * is declared.
      */
@@ -111,7 +111,7 @@ object KnownApps {
 
     /**
      * Returns a display name for [packageName].
-     * Priority: fallback table → raw package name.
+     * Priority: fallback table â†’ raw package name.
      * Used as the last resort when bundle metadata and installed labels are unavailable.
      */
     fun getAppName(packageName: String): String =
@@ -119,7 +119,7 @@ object KnownApps {
 
     /**
      * Returns a fallback display name for [packageName], or null if not in the table.
-     * Unlike [getAppName], does not fall back to the raw package name — null means unknown.
+     * Unlike [getAppName], does not fall back to the raw package name â€” null means unknown.
      * Used for transitional metadata fallbacks where absence should be preserved.
      */
     fun fallbackName(packageName: String): String? = FALLBACK_NAMES[packageName]

@@ -158,6 +158,7 @@ class PatcherViewModel(
     val packageName = selectedApp.packageName
     val version = selectedApp.version
     val pv7ModuleIds: Set<String> = input.pv7ModuleIds
+    val pv7OptionValues: Map<String, String> = input.pv7OptionValues
 
     /**
      * How the finished APK differs from the install this run was aimed at, or null when it lands
@@ -974,6 +975,7 @@ class PatcherViewModel(
             onProgress = patchRun::onProgress,
             patchSources = patchSourcesForLog,
             pv7ModuleIds = pv7ModuleIds,
+            pv7OptionValues = pv7OptionValues,
         )
     }
 

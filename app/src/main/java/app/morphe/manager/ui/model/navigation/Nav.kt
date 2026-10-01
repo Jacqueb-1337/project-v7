@@ -43,6 +43,7 @@ data object Patcher : ComplexParameter<Patcher.ViewModelParams> {
         val selectedPatches: PatchSelection,
         val options: @RawValue Options,
         val targetPackageName: String? = null,
-        val pv7ModuleIds: Set<String> = emptySet()
+        val pv7ModuleIds: Set<String> = emptySet(),
+        val pv7OptionValues: @RawValue Map<String, String> = emptyMap()
     ) : Parcelable
 }

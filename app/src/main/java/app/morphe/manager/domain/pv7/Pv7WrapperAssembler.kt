@@ -1,10 +1,8 @@
 package app.morphe.manager.domain.pv7
 
 import android.content.res.AssetManager
-
 import com.reandroid.apk.ApkModule
 import com.reandroid.archive.FileInputSource
-import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -12,7 +10,11 @@ import java.util.zip.ZipFile
 
 data class Pv7WrapperConfig(
     val packageName: String,
-    val launcherLabel: String? = null
+    val launcherLabel: String,
+    val versionName: String? = null,
+    val versionCode: Int? = null,
+    val launcherIcon: File? = null,
+    val guestPackageName: String? = null
 )
 
 data class Pv7GuestPayload(
@@ -24,6 +26,11 @@ data class Pv7GuestPayload(
 )
 
 class Pv7WrapperAssembler {
+    companion object {
+        const val LAUNCHER_ICON_APK_PATH = "res/drawable/pv7_launcher_icon.png"
+        const val COMPAT_PROPERTIES_APK_PATH = "assets/pv7/compat.properties"
+    }
+
     fun extractLegacyUnityGuest(inputApk: File, stagingRoot: File): Pv7GuestPayload {
         if (!inputApk.isFile) throw IOException("Input APK does not exist: " + inputApk)
 
@@ -41,26 +48,17 @@ class Pv7WrapperAssembler {
         ZipFile(inputApk).use { zip ->
             extractRequired(
                 zip,
-                listOf(
-                    "lib/armeabi-v7a/libmain.so",
-                    "lib/armeabi/libmain.so"
-                ),
+                listOf("lib/armeabi-v7a/libmain.so", "lib/armeabi/libmain.so"),
                 libMain
             )
             extractRequired(
                 zip,
-                listOf(
-                    "lib/armeabi-v7a/libunity.so",
-                    "lib/armeabi/libunity.so"
-                ),
+                listOf("lib/armeabi-v7a/libunity.so", "lib/armeabi/libunity.so"),
                 libUnity
             )
             extractRequired(
                 zip,
-                listOf(
-                    "lib/armeabi-v7a/libmono.so",
-                    "lib/armeabi/libmono.so"
-                ),
+                listOf("lib/armeabi-v7a/libmono.so", "lib/armeabi/libmono.so"),
                 libMono
             )
 
@@ -118,11 +116,24 @@ class Pv7WrapperAssembler {
             module.setLoadDefaultFramework(false)
             module.setPackageName(config.packageName)
 
+            val manifest = module.androidManifestBlock
+            manifest.setApplicationLabel(config.launcherLabel)
+            config.versionName?.takeIf { it.isNotBlank() }?.let(manifest::setVersionName)
+            config.versionCode?.takeIf { it > 0 }?.let(manifest::setVersionCode)
+
             replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
             replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
             addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
+
+            config.guestPackageName
+                ?.takeIf { it.isNotBlank() }
+                ?.let { applyGuestPackageOverride(module, it, guestPayload.root) }
+
+            config.launcherIcon
+                ?.takeIf { it.isFile }
+                ?.let { replaceFile(module, it, LAUNCHER_ICON_APK_PATH) }
 
             module.refreshManifest()
             module.refreshTable()
@@ -133,6 +144,33 @@ class Pv7WrapperAssembler {
         }
     }
 
+    private fun applyGuestPackageOverride(
+        apk: ApkModule,
+        guestPackageName: String,
+        scratchRoot: File
+    ) {
+        val existing = apk.getInputSource(COMPAT_PROPERTIES_APK_PATH)
+            ?.openStream()
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            .orEmpty()
+
+        val text = buildString {
+            val preserved = existing.trimEnd()
+            if (preserved.isNotEmpty()) {
+                append(preserved)
+                append('\n')
+            }
+            append("guest.package=")
+            append(guestPackageName)
+            append('\n')
+        }
+
+        val target = File(scratchRoot, "generated/compat.properties")
+        target.parentFile?.mkdirs()
+        target.writeText(text)
+        replaceFile(apk, target, COMPAT_PROPERTIES_APK_PATH)
+    }
 
     private fun overlayModulePayloads(
         apk: ApkModule,

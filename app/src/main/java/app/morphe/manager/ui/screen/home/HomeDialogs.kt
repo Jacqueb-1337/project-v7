@@ -92,6 +92,15 @@ fun HomeDialogs(
                                 )
                             )
                         }
+                        if (state.savedFilePath != null && state.savedVersion != null) {
+                            add(
+                                DialogAction(
+                                    text = "Use saved APK (v" + state.savedVersion + ")",
+                                    onClick = homeViewModel::useSavedPv7SupportedApp,
+                                    icon = Icons.Outlined.Restore
+                                )
+                            )
+                        }
                         add(
                             DialogAction(
                                 text = stringResource(R.string.home_file_picker_prompt_open_apk),
@@ -207,7 +216,7 @@ fun HomeDialogs(
             (homeViewModel.pendingSelectedDownloadVersion ?: homeViewModel.pendingRecommendedVersion)?.version
         }
 
-        // Resolve download button color: bundle declared → default
+        // Resolve download button color: bundle declared Ã¢â€ â€™ default
         val bundleMetadata by homeViewModel.bundleAppMetadataFlow.collectAsStateWithLifecycle()
         val downloadColor = remember(packageName, bundleMetadata) {
             bundleMetadata[packageName ?: ""]?.downloadColor
@@ -471,8 +480,11 @@ fun HomeDialogs(
             version = state.selectedApp.version,
             resolution = state.resolution,
             explicitModuleIds = state.explicitModuleIds,
+            optionValues = state.optionValues,
             catalogIssues = state.catalog.issues,
             onToggleModule = homeViewModel::togglePv7Module,
+            onOptionChange = homeViewModel::updatePv7Option,
+            onCustomIconPicked = homeViewModel::setPv7CustomIcon,
             onProceed = homeViewModel::confirmPv7Selection,
             onDismiss = homeViewModel::dismissPv7Selection
         )

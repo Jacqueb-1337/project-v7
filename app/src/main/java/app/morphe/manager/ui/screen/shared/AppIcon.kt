@@ -53,7 +53,7 @@ import android.graphics.Path as AndroidPath
  * Universal app icon component.
  *
  * Automatically resolves icon from available sources:
- * installed app → original APK → patched APK → constants → fallback
+ * installed app ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ original APK ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ patched APK ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ constants ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ fallback
  *
  * A handed in [packageInfo] and one resolved from [packageName] share one code path, so the icon
  * stays on screen when a card gets its info later. [icon] stands in where no source has one.
@@ -65,6 +65,7 @@ fun AppIcon(
     packageName: String? = null,
     contentDescription: String?,
     icon: Drawable? = null,
+    remoteIconUrl: String? = null,
     preferredSource: AppDataSource = AppDataSource.INSTALLED,
     placeholderGradientColors: List<Color>? = null
 ) {
@@ -84,6 +85,12 @@ fun AppIcon(
         shownDrawable != null -> DrawableAppIcon(
             drawable = shownDrawable,
             contentDescription = contentDescription,
+            modifier = modifier
+        )
+        remoteIconUrl != null -> RemoteAppIcon(
+            url = remoteIconUrl,
+            contentDescription = contentDescription,
+            placeholderGradientColors = placeholderGradientColors,
             modifier = modifier
         )
         // Same placeholder while resolving and when nothing was found
@@ -190,6 +197,40 @@ private fun DrawableAppIcon(
         contentDescription = contentDescription,
         modifier = modifier
     )
+}
+
+
+@Composable
+private fun RemoteAppIcon(
+    url: String,
+    contentDescription: String?,
+    placeholderGradientColors: List<Color>?,
+    modifier: Modifier = Modifier
+) {
+    val painter = rememberAsyncImagePainter(url)
+    val state = painter.state
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        if (state !is AsyncImagePainter.State.Success) {
+            if (placeholderGradientColors != null) {
+                GlassPlaceholderIcon(
+                    gradientColors = placeholderGradientColors,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                FallbackIcon(
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(AppIconContentFraction)
+                )
+            }
+        }
+
+        Image(
+            painter = painter,
+            contentDescription = contentDescription,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 /**

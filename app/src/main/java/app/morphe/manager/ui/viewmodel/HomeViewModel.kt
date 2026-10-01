@@ -127,7 +127,8 @@ data class QuickPatchParams(
     val patches: PatchSelection,
     val options: Options,
     val targetPackageName: String? = null,
-    val pv7ModuleIds: Set<String> = emptySet()
+    val pv7ModuleIds: Set<String> = emptySet(),
+    val pv7OptionValues: Map<String, String> = emptyMap()
 )
 
 
@@ -269,14 +270,19 @@ class HomeViewModel(
         val catalog: Pv7LoadedCatalog,
         val target: Pv7AppTarget,
         val explicitModuleIds: Set<String>,
-        val resolution: Pv7ResolutionPlan
+        val resolution: Pv7ResolutionPlan,
+        val optionValues: Map<String, String>,
+        val sourceDisplayName: String
     )
 
     var pv7PendingRun by mutableStateOf<Pv7PendingPatchRun?>(null)
         private set
     data class Pv7SupportedAppSourceState(
         val app: Pv7SupportedApp,
-        val installedVersion: String?
+        val installedVersion: String?,
+        val savedVersion: String? = null,
+        val savedVersionCode: Long? = null,
+        val savedFilePath: String? = null
     )
 
     var pv7SupportedAppSource by mutableStateOf<Pv7SupportedAppSourceState?>(null)
@@ -289,6 +295,24 @@ class HomeViewModel(
             app = appEntry,
             installedVersion = installedVersion
         )
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val saved = originalApkRepository.get(appEntry.packageName)
+            val savedFile = saved?.filePath?.let(::File)?.takeIf { it.isFile }
+            val savedInfo = savedFile?.let(pm::getPackageInfo)
+            val updated = Pv7SupportedAppSourceState(
+                app = appEntry,
+                installedVersion = installedVersion,
+                savedVersion = saved?.version,
+                savedVersionCode = savedInfo?.let(pm::getVersionCode),
+                savedFilePath = savedFile?.absolutePath
+            )
+            withContext(Dispatchers.Main) {
+                if (pv7SupportedAppSource?.app?.packageName == appEntry.packageName) {
+                    pv7SupportedAppSource = updated
+                }
+            }
+        }
     }
 
     fun dismissPv7SupportedAppSource() {
@@ -314,6 +338,37 @@ class HomeViewModel(
             patches = emptyMap(),
             options = emptyMap()
         )
+    }
+
+    fun useSavedPv7SupportedApp() {
+        val state = pv7SupportedAppSource ?: return
+        val path = state.savedFilePath ?: return
+        val version = state.savedVersion ?: return
+        val file = File(path)
+        if (!file.isFile) {
+            app.toast("The saved APK is no longer available")
+            showPv7SupportedAppSource(state.app, state.installedVersion)
+            return
+        }
+
+        pendingPv7SupportedPackageName = state.app.packageName
+        pv7SupportedAppSource = null
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                originalApkRepository.markUsed(state.app.packageName)
+            }
+            proceedWithPatching(
+                selectedApp = SelectedApp.Local(
+                    packageName = state.app.packageName,
+                    version = version,
+                    versionCode = state.savedVersionCode,
+                    file = file,
+                    temporary = false
+                ),
+                patches = emptyMap(),
+                options = emptyMap()
+            )
+        }
     }
     // Expert mode state
     var showExpertModeDialog by mutableStateOf(false)
@@ -1925,7 +1980,7 @@ class HomeViewModel(
 
             // Verify APK signature against the expected signatures declared in the patch bundle.
             // GET_SIGNING_CERTIFICATES (API 28+) is required for reliable archive signature reads.
-            // On Android 8–10 the legacy GET_SIGNATURES path cannot read signatures from
+            // On Android 8ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“10 the legacy GET_SIGNATURES path cannot read signatures from
             // archive files correctly, so we skip verification there to avoid false-blocking users.
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
                 val expectedSignatures = bundleAppMetadataFlow.value[selectedApp.packageName]?.signatures
@@ -2008,8 +2063,8 @@ class HomeViewModel(
         }
 
         // If the version is experimental, show the appropriate warning:
-        // - Experimental mode ON → ExperimentalVersionWarningDialog
-        // - Experimental mode OFF → UnsupportedVersionWarningDialog
+        // - Experimental mode ON ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ ExperimentalVersionWarningDialog
+        // - Experimental mode OFF ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ UnsupportedVersionWarningDialog
         if (isVersionExperimental && !allowIncompatible) {
             pendingSelectedApp = selectedApp
             val state = unsupportedVersionState(selectedApp, isExperimental = true)
@@ -2022,7 +2077,7 @@ class HomeViewModel(
             return
         }
 
-        // Patches exist and are applicable → proceed.
+        // Patches exist and are applicable ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ proceed.
         // For root-capable devices, we must know the patch mode BEFORE patching
         // because it is the install target patches declare their availability against.
         // Show the pre-patching mode dialog so the user can choose.
@@ -2200,7 +2255,7 @@ class HomeViewModel(
                         val seenForBundle = withContext(Dispatchers.IO) {
                             patchSelectionRepository.getSeenPatches(configurationKey, bundle.uid)
                         }
-                        // No snapshot yet → first time opening expert mode for this package,
+                        // No snapshot yet ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ first time opening expert mode for this package,
                         // nothing to flag as new.
                         val seen = seenForBundle ?: return@forEach
                         val currentPatchNames = bundle.patches.map { it.name }.toSet()
@@ -2351,13 +2406,11 @@ class HomeViewModel(
         patches: PatchSelection,
         options: Options
     ) {
-        // Every run passes through Project V7 compatibility selection before the patcher starts.
-        // This keeps simple mode from silently bypassing maintainer-tested module recommendations.
         dismissInstalledAppInfo()
         val targetPackageName = pendingRepatchPackageName
 
         viewModelScope.launch {
-            val (catalog, target) = withContext(Dispatchers.IO) {
+            val sourceContext = withContext(Dispatchers.IO) {
                 val catalog = Pv7CatalogLoader(app).load()
                 val apkFile = when (selectedApp) {
                     is SelectedApp.Local -> selectedApp.file
@@ -2365,15 +2418,21 @@ class HomeViewModel(
                         File(app.packageManager.getApplicationInfo(selectedApp.packageName, 0).sourceDir)
                     }.getOrNull()
                 }
+                val packageInfo = apkFile?.let(pm::getPackageInfo)
+                    ?: pm.getPackageInfo(selectedApp.packageName)
+                val sourceDisplayName = packageInfo?.let { with(pm) { it.label() } }
+                    ?: apps.pv7SupportedApp(selectedApp.packageName)?.displayName
+                    ?: selectedApp.packageName
                 val target = Pv7AppTarget(
                     packageId = selectedApp.packageName,
                     versionName = selectedApp.version,
                     abis = apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
                     engine = apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
                 )
-                catalog to target
+                Triple(catalog, target, sourceDisplayName)
             }
 
+            val (catalog, target, sourceDisplayName) = sourceContext
             val resolution = Pv7CatalogResolver.resolve(
                 target = target,
                 modules = catalog.modules,
@@ -2385,7 +2444,12 @@ class HomeViewModel(
             }
             if (relevantModules.isEmpty()) {
                 startPatchingNow(
-                    selectedApp, patches, options, targetPackageName, emptySet()
+                    selectedApp,
+                    patches,
+                    options,
+                    targetPackageName,
+                    emptySet(),
+                    emptyMap()
                 )
                 return@launch
             }
@@ -2406,8 +2470,74 @@ class HomeViewModel(
                 catalog = catalog,
                 target = target,
                 explicitModuleIds = explicitModuleIds,
-                resolution = resolution
+                resolution = resolution,
+                optionValues = ensurePv7OptionDefaults(
+                    resolution = resolution,
+                    selectedApp = selectedApp,
+                    sourceDisplayName = sourceDisplayName,
+                    existing = emptyMap()
+                ),
+                sourceDisplayName = sourceDisplayName
             )
+        }
+    }
+
+    private fun ensurePv7OptionDefaults(
+        resolution: Pv7ResolutionPlan,
+        selectedApp: SelectedApp,
+        sourceDisplayName: String,
+        existing: Map<String, String>
+    ): Map<String, String> {
+        val values = existing.toMutableMap()
+        for (row in resolution.visibleModules) {
+            if (!row.selected) continue
+            for (operation in row.manifest.operations) {
+                val optionKey = operation.option?.takeIf { it.isNotBlank() } ?: continue
+                val key = pv7OptionKey(row.manifest.id, optionKey)
+                if (!values[key].isNullOrBlank()) continue
+                when (operation.type) {
+                    "wrapper.setPackageId" -> values[key] = selectedApp.packageName + ".pv7"
+                    "wrapper.setLauncherLabel" -> values[key] = sourceDisplayName
+                    "guest.setPackageId" -> values[key] = selectedApp.packageName
+                    "wrapper.setLauncherIcon" -> values.putIfAbsent(key, "")
+                }
+            }
+        }
+        return values
+    }
+
+    fun updatePv7Option(moduleId: String, optionKey: String, value: String) {
+        val state = pv7PendingRun ?: return
+        pv7PendingRun = state.copy(
+            optionValues = state.optionValues + (pv7OptionKey(moduleId, optionKey) to value)
+        )
+    }
+
+    fun setPv7CustomIcon(moduleId: String, optionKey: String, uri: Uri) {
+        val state = pv7PendingRun ?: return
+        viewModelScope.launch {
+            val iconFile = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bitmap = contentResolver.openInputStream(uri)?.use { stream ->
+                        android.graphics.BitmapFactory.decodeStream(stream)
+                    } ?: error("Could not decode image")
+                    val safePackage = state.selectedApp.packageName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val output = File(app.cacheDir, "pv7-custom-icon-" + safePackage + ".png")
+                    output.outputStream().use { stream ->
+                        check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream))
+                    }
+                    bitmap.recycle()
+                    output
+                }.onFailure {
+                    Log.w(tag, "Could not read custom Project V7 launcher icon", it)
+                }.getOrNull()
+            }
+
+            if (iconFile == null) {
+                app.toast("Could not read that image")
+            } else {
+                updatePv7Option(moduleId, optionKey, iconFile.absolutePath)
+            }
         }
     }
 
@@ -2431,19 +2561,47 @@ class HomeViewModel(
         )
         pv7PendingRun = state.copy(
             explicitModuleIds = explicit,
-            resolution = resolution
+            resolution = resolution,
+            optionValues = ensurePv7OptionDefaults(
+                resolution = resolution,
+                selectedApp = state.selectedApp,
+                sourceDisplayName = state.sourceDisplayName,
+                existing = state.optionValues
+            )
         )
     }
 
     fun confirmPv7Selection() {
         val state = pv7PendingRun ?: return
+        val missing = state.resolution.visibleModules
+            .filter { it.selected }
+            .flatMap { row ->
+                row.manifest.operations.mapNotNull { operation ->
+                    val optionKey = operation.option?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    when (operation.type) {
+                        "wrapper.setPackageId",
+                        "wrapper.setLauncherLabel",
+                        "wrapper.setLauncherIcon",
+                        "guest.setPackageId" -> pv7OptionKey(row.manifest.id, optionKey)
+                        else -> null
+                    }
+                }
+            }
+            .filter { state.optionValues[it].isNullOrBlank() }
+
+        if (missing.isNotEmpty()) {
+            app.toast("Configure the selected Project V7 options first")
+            return
+        }
+
         pv7PendingRun = null
         startPatchingNow(
             selectedApp = state.selectedApp,
             patches = state.patches,
             options = state.options,
             targetPackageName = state.targetPackageName,
-            pv7ModuleIds = state.resolution.selectedModuleIds
+            pv7ModuleIds = state.resolution.selectedModuleIds,
+            pv7OptionValues = state.optionValues
         )
     }
 
@@ -2457,7 +2615,8 @@ class HomeViewModel(
         patches: PatchSelection,
         options: Options,
         targetPackageName: String?,
-        pv7ModuleIds: Set<String>
+        pv7ModuleIds: Set<String>,
+        pv7OptionValues: Map<String, String>
     ) {
         onStartQuickPatch?.invoke(
             QuickPatchParams(
@@ -2465,7 +2624,8 @@ class HomeViewModel(
                 patches = patches,
                 options = options,
                 targetPackageName = targetPackageName,
-                pv7ModuleIds = pv7ModuleIds
+                pv7ModuleIds = pv7ModuleIds,
+                pv7OptionValues = pv7OptionValues
             )
         )
 
@@ -2768,7 +2928,7 @@ class HomeViewModel(
         val bundleScope = expertModeBundles.mapTo(mutableSetOf()) { it.uid }
         val finalPatches = expertModeRunSelection
         val finalOptions = expertModeOptions
-        // Strip UI-only empty strings (fields cleared via ✕) so the patcher engine
+        // Strip UI-only empty strings (fields cleared via ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢) so the patcher engine
         // receives null / no key for those options and falls back to its own default,
         // rather than receiving a literal empty string.
         val patcherOptions = finalOptions.sanitizeForPatcher()

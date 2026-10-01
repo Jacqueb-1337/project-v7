@@ -109,7 +109,7 @@ class HomeCardCacheTest {
     @Test
     fun `cards of another format are dropped`() {
         HomeCardCache(file).write(state(item("a")))
-        file.writeText(file.readText().replace("\"format\":1", "\"format\":0"))
+        file.writeText(file.readText().replace("\"format\":2", "\"format\":0"))
 
         assertNull(HomeCardCache(file).read())
     }

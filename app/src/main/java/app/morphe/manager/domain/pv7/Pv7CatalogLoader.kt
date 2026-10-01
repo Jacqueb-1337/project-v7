@@ -15,6 +15,7 @@ data class Pv7SupportedApp(
     val recommendedVersion: String? = null,
     val versions: List<String> = emptyList(),
     val downloadUrl: String? = null,
+    val iconUrl: String? = null,
     val pinnedByDefault: Boolean = true
 )
 

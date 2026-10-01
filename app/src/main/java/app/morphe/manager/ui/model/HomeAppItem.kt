@@ -35,6 +35,7 @@ data class HomeAppItem(
     val versionStatus: AppVersionStatus?,
     val patchCount: Int,
     val isClone: Boolean,
+    val iconUrl: String? = null,
     /** What tells the card from another app of the same name, see [withNameSuffixes]. */
     val nameSuffix: String? = null
 ) {
