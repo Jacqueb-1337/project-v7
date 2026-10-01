@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:left="20dp" android:top="20dp" android:right="20dp" android:bottom="20dp">
-        <bitmap android:src="@drawable/pv7_icon_source" android:gravity="fill" />
+    <item>
+        <bitmap android:src="@drawable/pv7_icon_foreground" android:gravity="fill" />
     </item>
 </layer-list>
