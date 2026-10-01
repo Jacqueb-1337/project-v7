@@ -18,6 +18,8 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.util.Log
 import app.morphe.manager.ManagerApplication
@@ -160,6 +162,24 @@ class SessionInstaller(private val app: Application) {
                                     // broadcast, so the receiver is kept alive intentionally.
                                     userActionShown = true
                                     launchUserConfirmation(intent)
+                    val statusReceiver = this
+                    if (ManagerApplication.isInForeground) {
+                        ManagerApplication.onReturnToForeground = {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                if (cont.isActive) {
+                                    val sessionStillOpen = runCatching {
+                                        installer.getSessionInfo(sessionId) != null
+                                    }.getOrDefault(false)
+                                    if (sessionStillOpen) {
+                                        Log.w(TAG, "Session $sessionId returned from confirmation without a final status; resetting install")
+                                        runCatching { app.unregisterReceiver(statusReceiver) }
+                                        runCatching { installer.abandonSession(sessionId) }
+                                        cont.resumeWithException(InstallCancelledException())
+                                    }
+                                }
+                            }, 500L)
+                        }
+                    }
                                 }
 
                                 PackageInstaller.STATUS_FAILURE_ABORTED -> {
