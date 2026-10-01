@@ -316,18 +316,27 @@ fun HomeScreen(
                 ),
                 appActions = HomeAppActions(
                     onAppClick = { item ->
-                        homeViewModel.handleAppClick(
-                            packageName = item.packageName,
-                            availablePatches = availablePatches,
-                            bundleUpdateInProgress = false,
-                            android11BugActive = homeViewModel.android11BugActive,
-                            installedApp = item.installedApp
-                        )
-                        item.installedApp?.let {
-                            homeViewModel.openInstalledAppInfo(it.currentPackageName)
+                        val pv7App = homeViewModel.apps.pv7SupportedApp(item.packageName)
+                        if (pv7App != null) {
+                            homeViewModel.showPv7SupportedAppSource(
+                                appEntry = pv7App,
+                                installedVersion = item.version.takeIf {
+                                    item.isInstalledOnDevice && it.isNotBlank()
+                                }
+                            )
+                        } else {
+                            homeViewModel.handleAppClick(
+                                packageName = item.packageName,
+                                availablePatches = availablePatches,
+                                bundleUpdateInProgress = false,
+                                android11BugActive = homeViewModel.android11BugActive,
+                                installedApp = item.installedApp
+                            )
+                            item.installedApp?.let {
+                                homeViewModel.openInstalledAppInfo(it.currentPackageName)
+                            }
                         }
-                    },
-                    onHideApp = { packageName -> homeViewModel.apps.hideApp(packageName) },
+                    },                    onHideApp = { packageName -> homeViewModel.apps.hideApp(packageName) },
                     onHideMultiple = { packageNames -> packageNames.forEach { homeViewModel.apps.hideApp(it) } },
                     onUninstallMultiple = { items -> homeViewModel.uninstallApps(items) },
                     onReinstallMultiple = { items -> startBatchReinstall(items) },
@@ -374,14 +383,7 @@ fun HomeScreen(
                 ),
                 chromeActions = HomeChromeActions(
                     onOtherAppsClick = {
-                        if (availablePatches <= 0) {
-                            context.toast(sourcesLoadingText)
-                        } else {
-                            homeViewModel.pendingPackageName = null
-                            homeViewModel.pendingAppName = otherAppsText
-                            homeViewModel.pendingRecommendedVersion = null
-                            homeViewModel.showFilePickerPromptDialog = true
-                        }
+                        openApkPicker()
                     },
                     onBundlesClick = { homeViewModel.showBundleManagementSheet = true },
                     onSettingsClick = onSettingsClick,
@@ -390,7 +392,7 @@ fun HomeScreen(
                 chromeFlags = HomeChromeFlags(
                     showSearchButton = showSearchButton,
                     showSortButton = showSearchButton && showSortButtonPref,
-                    showOtherAppsButton = showOtherAppsButton,
+                    showOtherAppsButton = true,
                     isExpertModeEnabled = useExpertMode
                 ),
                 greetingMessage = greetingMessage,

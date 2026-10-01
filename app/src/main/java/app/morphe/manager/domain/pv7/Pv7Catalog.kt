@@ -2,6 +2,7 @@ package app.morphe.manager.domain.pv7
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
@@ -49,7 +50,9 @@ data class Pv7ModuleManifest(
     val suggestedWhenMatched: Boolean = false,
     val dependencies: List<String> = emptyList(),
     val conflicts: List<Pv7ModuleConflict> = emptyList(),
-    val operations: List<Pv7PatchOperation> = emptyList()
+    val operations: List<Pv7PatchOperation> = emptyList(),
+    val payloadFiles: List<String> = emptyList(),
+    @Transient val sourceAssetPath: String = ""
 )
 
 @Serializable
@@ -267,9 +270,9 @@ object Pv7CatalogResolver {
     private fun Pv7CompatibilityProfile.matches(target: Pv7AppTarget): Boolean {
         if (packageId != target.packageId) return false
         if (versions.isNotEmpty() && target.versionName !in versions) return false
-        if (abis.isNotEmpty() && target.abis.none(abis::contains)) return false
-        if (engines.isNotEmpty() && target.engine?.id !in engines) return false
-        if (engineVersions.isNotEmpty() && !matchesAnyVersion(target.engine?.version, engineVersions)) return false
+        if (abis.isNotEmpty() && target.abis.isNotEmpty() && target.abis.none(abis::contains)) return false
+        if (engines.isNotEmpty() && target.engine != null && target.engine.id !in engines) return false
+        if (engineVersions.isNotEmpty() && target.engine?.version != null && !matchesAnyVersion(target.engine.version, engineVersions)) return false
         return true
     }
 

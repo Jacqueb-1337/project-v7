@@ -51,13 +51,13 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "morphe-manager"
+rootProject.name = "project-v7-patcher"
 include(":app")
 
 // Include morphe-patcher and morphe-library as composite builds if they exist locally
 mapOf(
     "morphe-patcher" to "app.morphe:morphe-patcher",
-//    "morphe-library" to "app.morphe:morphe-library", // FIXME: Must upgrade library gradle to use this
+//    "morphe-library" to "app.morphe:morphe-library", // consume 1.4.0 from mavenLocal
 //    "ARSCLib" to "com.github.MorpheApp:ARSCLib"
 ).forEach { (libraryPath, libraryName) ->
     val libDir = file("../$libraryPath")

@@ -308,7 +308,7 @@ private fun AdaptiveContent(
         derivedStateOf { !apps.installedAppsLoading && apps.visible.isEmpty() }
     }
     val showGroupingFooter = !isAppsEmpty && apps.showCategoryViewSwitcher
-    val showOtherAppsFooter = !isAppsEmpty && chromeFlags.showOtherAppsButton
+    val showOtherAppsFooter = chromeFlags.showOtherAppsButton
     // Grouped views reserve the full list area so the footer keeps a stable position when
     // groups expand or collapse; the flat All-apps view lets the list wrap to its content
     // so the greeting and cards center together as one block

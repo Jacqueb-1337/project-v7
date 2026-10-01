@@ -58,8 +58,6 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:largeHeap="true"
         android:supportsRtl="true"
@@ -138,8 +136,6 @@
             android:name="app.morphe.manager.MainActivity_Default"
             android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:roundIcon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>
@@ -154,8 +150,6 @@
             android:name="app.morphe.manager.MainActivity_Light_2"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_light_2"
-            android:roundIcon="@mipmap/ic_launcher_light_2"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>
@@ -169,8 +163,6 @@
             android:name="app.morphe.manager.MainActivity_Light_3"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_light_3"
-            android:roundIcon="@mipmap/ic_launcher_light_3"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>
@@ -184,8 +176,6 @@
             android:name="app.morphe.manager.MainActivity_Dark_1"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_dark_1"
-            android:roundIcon="@mipmap/ic_launcher_dark_1"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>
@@ -199,8 +189,6 @@
             android:name="app.morphe.manager.MainActivity_Dark_2"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_dark_2"
-            android:roundIcon="@mipmap/ic_launcher_dark_2"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>
@@ -214,8 +202,6 @@
             android:name="app.morphe.manager.MainActivity_Dark_3"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_dark_3"
-            android:roundIcon="@mipmap/ic_launcher_dark_3"
             android:label="@string/app_name"
             android:targetActivity="app.morphe.manager.MainActivity">
             <intent-filter>

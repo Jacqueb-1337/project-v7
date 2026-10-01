@@ -1,5 +1,7 @@
 package app.morphe.manager.domain.pv7
 
+import android.content.res.AssetManager
+
 import com.reandroid.apk.ApkModule
 import com.reandroid.archive.FileInputSource
 import java.io.Closeable
@@ -103,7 +105,9 @@ class Pv7WrapperAssembler {
         templateApk: File,
         guestPayload: Pv7GuestPayload,
         outputApk: File,
-        config: Pv7WrapperConfig
+        config: Pv7WrapperConfig,
+        assets: AssetManager,
+        selectedModules: List<Pv7ModuleManifest>
     ) {
         if (!templateApk.isFile) {
             throw IOException("PV7 host template is missing: " + templateApk)
@@ -118,6 +122,7 @@ class Pv7WrapperAssembler {
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
             replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
             addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
+            overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
 
             module.refreshManifest()
             module.refreshTable()
@@ -126,6 +131,94 @@ class Pv7WrapperAssembler {
         } finally {
             runCatching { module.close() }
         }
+    }
+
+
+    private fun overlayModulePayloads(
+        apk: ApkModule,
+        assets: AssetManager,
+        selectedModules: List<Pv7ModuleManifest>,
+        scratchRoot: File
+    ) {
+        val ordered = selectedModules.sortedWith(
+            compareBy<Pv7ModuleManifest> {
+                if (it.kind == Pv7ModuleKind.GENERAL) 0 else 1
+            }.thenBy { it.id }
+        )
+
+        ordered.forEach { module ->
+            val sourceRoot = module.sourceAssetPath
+            if (sourceRoot.isBlank()) return@forEach
+
+            if (sourceRoot.startsWith("file:")) {
+                val payloadRoot = File(sourceRoot.removePrefix("file:"), "payload")
+                module.payloadFiles.forEach { relative ->
+                    val source = safeChild(payloadRoot, relative)
+                    if (!source.isFile) {
+                        throw IOException("PV7 module payload missing: " + module.id + "/" + relative)
+                    }
+                    replaceFile(apk, source, relative)
+                }
+                return@forEach
+            }
+
+            val assetModuleRoot = sourceRoot.removePrefix("asset:").trimEnd('/')
+            val payloadRoot = assetModuleRoot + "/payload"
+            if (module.payloadFiles.isNotEmpty()) {
+                val moduleScratch = File(scratchRoot, "module-payloads/" + module.id)
+                module.payloadFiles.forEach { relative ->
+                    val target = safeChild(moduleScratch, relative)
+                    target.parentFile?.mkdirs()
+                    assets.open(payloadRoot + "/" + relative).use { input ->
+                        FileOutputStream(target).use(input::copyTo)
+                    }
+                    replaceFile(apk, target, relative)
+                }
+                return@forEach
+            }
+
+            val children = assets.list(payloadRoot).orEmpty()
+            if (children.isEmpty()) return@forEach
+            val moduleScratch = File(scratchRoot, "module-payloads/" + module.id)
+            children.forEach { child ->
+                overlayAssetNode(
+                    apk = apk,
+                    assets = assets,
+                    assetPath = payloadRoot + "/" + child,
+                    apkPath = child,
+                    scratchRoot = moduleScratch
+                )
+            }
+        }
+    }
+
+    private fun overlayAssetNode(
+        apk: ApkModule,
+        assets: AssetManager,
+        assetPath: String,
+        apkPath: String,
+        scratchRoot: File
+    ) {
+        val children = assets.list(assetPath).orEmpty()
+        if (children.isNotEmpty()) {
+            children.forEach { child ->
+                overlayAssetNode(
+                    apk = apk,
+                    assets = assets,
+                    assetPath = assetPath + "/" + child,
+                    apkPath = apkPath.trimEnd('/') + "/" + child,
+                    scratchRoot = scratchRoot
+                )
+            }
+            return
+        }
+
+        val target = safeChild(scratchRoot, apkPath)
+        target.parentFile?.mkdirs()
+        assets.open(assetPath).use { input ->
+            FileOutputStream(target).use(input::copyTo)
+        }
+        replaceFile(apk, target, apkPath)
     }
 
     private fun extractRequired(

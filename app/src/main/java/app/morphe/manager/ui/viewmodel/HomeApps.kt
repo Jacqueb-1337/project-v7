@@ -21,6 +21,8 @@ import app.morphe.manager.domain.bundles.PatchBundleSource.Extensions.asRemoteOr
 import app.morphe.manager.domain.bundles.PatchBundleSource.Extensions.avatarUrls
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.domain.pv7.Pv7CatalogLoader
+import app.morphe.manager.domain.pv7.Pv7SupportedApp
 import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
 import app.morphe.manager.patcher.patch.BundleAppMetadata
 import app.morphe.manager.patcher.patch.PatchBundleInfo
@@ -128,6 +130,18 @@ class HomeApps(
 
     // Ticker to force homeAppState recomputation after install/uninstall without changing DB state
     private val _appStateTicker = MutableStateFlow(0L)
+    private val _pv7SupportedApps = MutableStateFlow<Map<String, Pv7SupportedApp>>(emptyMap())
+    val pv7SupportedApps: StateFlow<Map<String, Pv7SupportedApp>> = _pv7SupportedApps.asStateFlow()
+
+    fun pv7SupportedApp(packageName: String): Pv7SupportedApp? = _pv7SupportedApps.value[packageName]
+
+    private fun refreshPv7SupportedApps() {
+        scope.launch(Dispatchers.IO) {
+            val catalog = Pv7CatalogLoader(app).load(refreshRemote = true)
+            _pv7SupportedApps.value = catalog.apps.associateBy { it.packageName }
+            _appStateTicker.update { it + 1 }
+        }
+    }
     private val trackedAppInspectionSemaphore = Semaphore(4)
 
     private data class TrackedSnapshotEntry(
@@ -445,12 +459,16 @@ class HomeApps(
         val ready = bundleState as? PatchBundleRepository.BundleState.Ready
             ?: return cachedHomeCards?.toState(installedApps, homePrefs)
 
+        val pv7Apps = _pv7SupportedApps.value
+
         val enabledInfo = ready.info.filter { (_, info) -> info.enabled }
         val metadata = BundleAppMetadata.buildFrom(enabledInfo)
         // Names only, for records whose bundle the user has since disabled
         val allMetadata = BundleAppMetadata.buildFrom(ready.info)
         val appsBySource = enabledInfo.mapValues { (_, info) -> info.appsBrought(keptFrom) }
-        val packages = appsBySource.values.flatMapTo(mutableSetOf()) { it }
+        val packages = appsBySource.values.flatMapTo(mutableSetOf()) { it }.apply {
+            addAll(pv7Apps.keys)
+        }
         val sourceGroups = buildHomeAppSourceGroups(
             enabledInfo = enabledInfo,
             appsBySource = appsBySource,
@@ -468,6 +486,7 @@ class HomeApps(
             val packageName = slot.packageName
             val installedApp = slot.installedApp
             val bundleMeta = metadata[packageName]
+            val pv7Meta = pv7Apps[packageName]
             val knownApp = KnownApps.fromPackage(packageName)
             val gradientColors = bundleMeta?.gradientColors ?: KnownApps.DEFAULT_COLORS
             // Package manager data only, saved APKs are left to inspection and on-screen icons
@@ -479,6 +498,7 @@ class HomeApps(
                 ?: installedData?.displayName
                 ?: bundleMeta?.displayName
                 ?: allMetadata[packageName]?.displayName
+                ?: pv7Meta?.displayName
                 ?: KnownApps.getAppName(packageName)
             val trackedEntry = installedApp?.let { tracked ->
                 trackedSnapshots[tracked.currentPackageName]?.takeIf { it.app == tracked }
@@ -529,7 +549,7 @@ class HomeApps(
                 installedApp = installedApp,
                 packageInfo = packageInfo,
                 version = packageInfo?.versionName ?: installedApp?.version.orEmpty(),
-                isPinnedByDefault = knownApp?.isPinnedByDefault == true,
+                isPinnedByDefault = knownApp?.isPinnedByDefault == true || pv7Meta?.pinnedByDefault == true,
                 isInstalledOnDevice = (trackedPresentation?.showsInstalledPackage == true) ||
                         isUninspectedInstall ||
                         (installedApp == null && installedData != null),
@@ -763,6 +783,7 @@ class HomeApps(
         }.stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
+        refreshPv7SupportedApps()
         ContextCompat.registerReceiver(
             app,
             packageChangeReceiver,
@@ -789,6 +810,7 @@ class HomeApps(
 
     /** Rebuilds every card from scratch, after the sources were refreshed. */
     fun reload() {
+        refreshPv7SupportedApps()
         appDataResolver.invalidateAll()
         _appStateTicker.update { it + 1 }
     }

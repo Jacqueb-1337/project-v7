@@ -1,6 +1,6 @@
 package app.morphe.manager.domain.pv7
 
-import android.content.res.AssetManager
+import android.content.Context
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -32,11 +32,11 @@ data class Pv7BuildPlan(
     }
 }
 
-class Pv7BuildPlanner(private val assets: AssetManager) {
+class Pv7BuildPlanner(private val context: Context) {
     fun create(selectedModuleIds: Set<String>): Pv7BuildPlan {
         if (selectedModuleIds.isEmpty()) return Pv7BuildPlan.Empty
 
-        val catalog = Pv7CatalogLoader(assets).load()
+        val catalog = Pv7CatalogLoader(context).load(refreshRemote = false)
         if (catalog.issues.isNotEmpty()) {
             throw IllegalStateException(
                 "PV7 catalog is invalid: " + catalog.issues.joinToString("; ")

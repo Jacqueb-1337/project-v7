@@ -274,6 +274,47 @@ class HomeViewModel(
 
     var pv7PendingRun by mutableStateOf<Pv7PendingPatchRun?>(null)
         private set
+    data class Pv7SupportedAppSourceState(
+        val app: Pv7SupportedApp,
+        val installedVersion: String?
+    )
+
+    var pv7SupportedAppSource by mutableStateOf<Pv7SupportedAppSourceState?>(null)
+        private set
+
+    private var pendingPv7SupportedPackageName: String? = null
+
+    fun showPv7SupportedAppSource(appEntry: Pv7SupportedApp, installedVersion: String?) {
+        pv7SupportedAppSource = Pv7SupportedAppSourceState(
+            app = appEntry,
+            installedVersion = installedVersion
+        )
+    }
+
+    fun dismissPv7SupportedAppSource() {
+        pv7SupportedAppSource = null
+    }
+
+    fun beginPv7SupportedAppFileSelection() {
+        val state = pv7SupportedAppSource ?: return
+        pendingPv7SupportedPackageName = state.app.packageName
+        pv7SupportedAppSource = null
+    }
+
+    fun useInstalledPv7SupportedApp() {
+        val state = pv7SupportedAppSource ?: return
+        val version = state.installedVersion ?: return
+        pendingPv7SupportedPackageName = state.app.packageName
+        pv7SupportedAppSource = null
+        proceedWithPatching(
+            selectedApp = SelectedApp.Installed(
+                packageName = state.app.packageName,
+                version = version
+            ),
+            patches = emptyMap(),
+            options = emptyMap()
+        )
+    }
     // Expert mode state
     var showExpertModeDialog by mutableStateOf(false)
     var expertModeSelectedApp by mutableStateOf<SelectedApp?>(null)
@@ -1710,10 +1751,6 @@ class HomeViewModel(
      */
     fun handleExternalApkUri(uri: Uri) {
         viewModelScope.launch {
-            if (!isExpertMode()) {
-                app.toast(app.getString(R.string.home_external_apk_expert_mode_required))
-                return@launch
-            }
             // Wait for patches to be ready. Cap at 30 s to avoid hanging forever when
             // no patch sources are configured (installedAppsLoading never clears in that case)
             withTimeoutOrNull(30.seconds) {
@@ -1742,7 +1779,22 @@ class HomeViewModel(
                 when (result) {
                     is ApkLoadResult.Success -> {
                         pickedApkIcon = result.icon?.let { result.app.file to it }
-                        processSelectedApp(result.app)
+                        val catalogPackage = pendingPv7SupportedPackageName
+                        if (catalogPackage != null && catalogPackage != result.app.packageName) {
+                            app.toast("Selected APK does not match " + catalogPackage)
+                            return@launch
+                        }
+
+                        if (catalogPackage != null || hasTestedPv7Profile(result.app)) {
+                            pendingPv7SupportedPackageName = null
+                            proceedWithPatching(
+                                selectedApp = result.app,
+                                patches = emptyMap(),
+                                options = emptyMap()
+                            )
+                        } else {
+                            processSelectedApp(result.app)
+                        }
                     }
                     is ApkLoadResult.Unreadable -> app.toast(app.getString(R.string.home_invalid_apk_unreadable))
                     is ApkLoadResult.NotAnApk -> app.toast(app.getString(R.string.home_invalid_apk_not_an_apk))
@@ -1753,6 +1805,29 @@ class HomeViewModel(
             }
         }
     }
+
+    private suspend fun hasTestedPv7Profile(selectedApp: SelectedApp): Boolean =
+        withContext(Dispatchers.IO) {
+            val apkFile = when (selectedApp) {
+                is SelectedApp.Local -> selectedApp.file
+                is SelectedApp.Installed -> runCatching {
+                    pm.getApplicationInfo(selectedApp.packageName, 0)?.sourceDir?.let(::File)
+                }.getOrNull()
+            } ?: return@withContext false
+
+            val catalog = Pv7CatalogLoader(app).load()
+            val target = Pv7AppTarget(
+                packageId = selectedApp.packageName,
+                versionName = selectedApp.version,
+                abis = Pv7EngineDetector.detectAbis(apkFile),
+                engine = runCatching { Pv7EngineDetector.detect(apkFile) }.getOrNull()
+            )
+            Pv7CatalogResolver.resolve(
+                target = target,
+                modules = catalog.modules,
+                profiles = catalog.profiles
+            ).profile != null
+        }
 
     /**
      * Handle selection of saved APK from APK availability dialog.
@@ -2283,7 +2358,7 @@ class HomeViewModel(
 
         viewModelScope.launch {
             val (catalog, target) = withContext(Dispatchers.IO) {
-                val catalog = Pv7CatalogLoader(app.assets).load()
+                val catalog = Pv7CatalogLoader(app).load()
                 val apkFile = when (selectedApp) {
                     is SelectedApp.Local -> selectedApp.file
                     is SelectedApp.Installed -> runCatching {
@@ -2839,6 +2914,7 @@ class HomeViewModel(
     fun cleanupPendingData(keepSelectedApp: Boolean = false, keepBundleUid: Boolean = false) {
         pendingPackageName = null
         pendingAppName = null
+        pendingPv7SupportedPackageName = null
         pendingRecommendedVersion = null
         pendingCompatibleVersions = emptyList()
         pendingSelectedDownloadVersion = null

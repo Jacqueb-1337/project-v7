@@ -1,0 +1,8 @@
+﻿{
+  "packageName": "com.joydo.minestrikenew",
+  "displayName": "Cops N Robbers",
+  "recommendedVersion": "3.0.2",
+  "versions": ["3.0.2"],
+  "downloadUrl": "https://github.com/Jacqueb-1337/project-v7/releases/download/cnr-3.0.2/CopsNRobbers-v3.0.2-cnr1.apk",
+  "pinnedByDefault": true
+}

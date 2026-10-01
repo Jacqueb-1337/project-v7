@@ -70,6 +70,61 @@ fun HomeDialogs(
         enabled = homeViewModel.showDownloadInstructionsDialog
     )
 
+    homeViewModel.pv7SupportedAppSource?.let { state ->
+        AppDialog(
+            onDismissRequest = homeViewModel::dismissPv7SupportedAppSource,
+            accentColor = rememberAppColor(state.app.packageName),
+            title = stringResource(R.string.pv7_supported_app_source_title),
+            description = stringResource(
+                R.string.pv7_supported_app_source_description,
+                state.app.displayName
+            ),
+            footer = {
+                AppDialogActions(
+                    actions = buildList {
+                        if (state.installedVersion != null) {
+                            add(
+                                DialogAction(
+                                    text = stringResource(R.string.home_use_installed_app) +
+                                        " (v" + state.installedVersion + ")",
+                                    onClick = homeViewModel::useInstalledPv7SupportedApp,
+                                    icon = Icons.Outlined.PhoneAndroid
+                                )
+                            )
+                        }
+                        add(
+                            DialogAction(
+                                text = stringResource(R.string.home_file_picker_prompt_open_apk),
+                                onClick = {
+                                    homeViewModel.beginPv7SupportedAppFileSelection()
+                                    storagePickerLauncher()
+                                },
+                                icon = Icons.Outlined.FolderOpen
+                            )
+                        )
+                        state.app.downloadUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                            add(
+                                DialogAction(
+                                    text = stringResource(R.string.pv7_help_find_apk),
+                                    onClick = {
+                                        runCatching { uriHandler.openUri(url) }
+                                    },
+                                    icon = Icons.Outlined.Download
+                                )
+                            )
+                        }
+                        add(
+                            DialogAction(
+                                text = stringResource(android.R.string.cancel),
+                                onClick = homeViewModel::dismissPv7SupportedAppSource
+                            )
+                        )
+                    },
+                    layout = DialogButtonLayout.Vertical
+                )
+            }
+        )
+    }
     // APK selection processing overlay - blocks interaction while APK is loaded/validated in background
     Overlay(visible = homeViewModel.processingApkSelection) {
         PulsingLogoWithCaption(caption = stringResource(R.string.processing_apk))

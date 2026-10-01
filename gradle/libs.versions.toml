@@ -81,7 +81,7 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 # Patcher
 arsclib = { module = "com.github.MorpheApp:ARSCLib", version.ref = "arsclib" }
 morphe-patcher = { group = "app.morphe", name = "morphe-patcher", version.ref = "morphe-patcher" }
-morphe-library = { group = "app.morphe", name = "morphe-library", version.ref = "morphe-library" }
+morphe-library = { group = "app.morphe", name = "morphe-library-android", version.ref = "morphe-library" }
 
 # Koin
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }

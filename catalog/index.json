@@ -1,0 +1,17 @@
+{
+    "schemaVersion":  1,
+    "modules":  [
+                    "modules/games/com.joydo.minestrikenew/cnr-compat/module.json",
+                    "modules/general/core-compat/module.json",
+                    "modules/general/guest-package-id/module.json",
+                    "modules/general/launcher-display-name/module.json",
+                    "modules/general/unity-4.6-compat/module.json",
+                    "modules/general/wrapper-package-id/module.json"
+                ],
+    "profiles":  [
+                     "profiles/com.joydo.minestrikenew/3.0.2.json"
+                 ],
+    "apps":  [
+                 "apps/com.joydo.minestrikenew.json"
+             ]
+}

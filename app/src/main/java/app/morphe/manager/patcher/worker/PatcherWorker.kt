@@ -30,6 +30,8 @@ import app.morphe.manager.domain.manager.PreferencesManager
 import app.morphe.manager.domain.repository.InstalledAppRepository
 import app.morphe.manager.domain.repository.OriginalApkRepository
 import app.morphe.manager.domain.pv7.Pv7BuildPlanner
+import app.morphe.manager.domain.pv7.Pv7WrapperAssembler
+import app.morphe.manager.domain.pv7.Pv7WrapperConfig
 import app.morphe.manager.domain.worker.Worker
 import app.morphe.manager.domain.worker.WorkerRepository
 import app.morphe.manager.patcher.logger.Logger
@@ -368,7 +370,7 @@ class PatcherWorker(
             // APK alone and says nothing about the split its native libraries live in
             val apkArchitecture = ApkArchitectureResolver.resolve(args.input, pm)
             val selectedCount = args.selectedPatches.values.sumOf { it.size }
-            val pv7BuildPlan = Pv7BuildPlanner(applicationContext.assets).create(args.pv7ModuleIds)
+            val pv7BuildPlan = Pv7BuildPlanner(applicationContext).create(args.pv7ModuleIds)
 
             if (pv7BuildPlan.selectedModuleIds.isNotEmpty()) {
                 args.logger.info(
@@ -443,11 +445,59 @@ class PatcherWorker(
             }
 
             if (pv7BuildPlan.requiresWrapper) {
-                throw IllegalStateException(
-                    "Project V7 wrapper assembly is not staged yet. " +
-                        "The compatibility plan was validated, but this build will not emit a plain APK in its place."
+                if (selectedCount > 0) {
+                    throw IllegalStateException(
+                        "Project V7 wrapper builds cannot be combined with legacy Morphe patch bundles yet."
+                    )
+                }
+                if (inputIsSplitArchive) {
+                    throw IllegalStateException(
+                        "Project V7 wrapper assembly currently requires a single APK, not a split archive."
+                    )
+                }
+
+                updatePatcherNotification(
+                    stepName = "Building Project V7 wrapper",
+                    patchProgress = null
                 )
-            }
+
+                val pv7Work = File(
+                    applicationContext.cacheDir,
+                    "pv7-wrapper-" + System.nanoTime().toString()
+                )
+                if (pv7Work.exists()) pv7Work.deleteRecursively()
+                pv7Work.mkdirs()
+
+                try {
+                    val templateApk = File(pv7Work, "pv7-host-template.apk")
+                    applicationContext.assets.open("pv7/templates/pv7-host-template.apk").use { input ->
+                        templateApk.outputStream().use(input::copyTo)
+                    }
+
+                    val assembler = Pv7WrapperAssembler()
+                    val guestPayload = assembler.extractLegacyUnityGuest(
+                        inputApk = inputFile,
+                        stagingRoot = File(pv7Work, "guest")
+                    )
+
+                    val wrapperPackage = args.packageName + ".pv7"
+                    assembler.assembleFromTemplate(
+                        templateApk = templateApk,
+                        guestPayload = guestPayload,
+                        outputApk = patchedApk,
+                        config = Pv7WrapperConfig(packageName = wrapperPackage),
+                        assets = applicationContext.assets,
+                        selectedModules = pv7BuildPlan.selectedModules
+                    )
+
+                    args.logger.info(
+                        "PV7 wrapper assembled package=" + wrapperPackage +
+                            " modules=" + pv7BuildPlan.selectedModuleIds.sorted().joinToString(",")
+                    )
+                } finally {
+                    pv7Work.deleteRecursively()
+                }
+            } else {
 
             // Execute patching. ProcessRuntime has its own retry loop that reduces memory on OOM
             // If it still fails on Android <= Q, fall back to CoroutineRuntime
@@ -520,6 +570,8 @@ class PatcherWorker(
                     onMergedApkReady,
                     onRestart
                 )
+            }
+
             }
 
             updatePatcherNotification(stepName = signingApkLabel, patchProgress = null)
