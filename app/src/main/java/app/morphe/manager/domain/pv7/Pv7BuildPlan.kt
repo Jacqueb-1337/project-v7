@@ -84,6 +84,7 @@ class Pv7BuildPlanner(private val context: Context) {
                             )
                         compatModules += compatId
                     }
+                    "wrapper.addDocumentsProvider" -> Unit
                     "wrapper.setPackageId",
                     "wrapper.setLauncherLabel",
                     "wrapper.setLauncherIcon",

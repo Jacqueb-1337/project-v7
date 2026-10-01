@@ -115,6 +115,7 @@ gradle-app.setting
 
 # Potentially copyrighted test APK
 *.apk
+!app/src/main/assets/pv7/templates/pv7-host-template.apk
 
 # Ignore vscode config
 .vscode/

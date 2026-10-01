@@ -466,9 +466,9 @@ class HomeApps(
         // Names only, for records whose bundle the user has since disabled
         val allMetadata = BundleAppMetadata.buildFrom(ready.info)
         val appsBySource = enabledInfo.mapValues { (_, info) -> info.appsBrought(keptFrom) }
-        val packages = appsBySource.values.flatMapTo(mutableSetOf()) { it }.apply {
-            addAll(pv7Apps.keys)
-        }
+        // Project V7 home is catalog-driven. Keep inherited Morphe sources internal,
+        // but do not surface their unrelated apps in the supported-app list.
+        val packages = pv7Apps.keys.toMutableSet()
         val sourceGroups = buildHomeAppSourceGroups(
             enabledInfo = enabledInfo,
             appsBySource = appsBySource,
@@ -572,11 +572,9 @@ class HomeApps(
             )
         }
 
-        // Include apps patched with universal patches through "Other apps", and patched apps no
-        // source brings anymore: they are not in the list but must still appear as cards so users
-        // can reinstall/uninstall/see updates
-        val universalOnlyPackages = recordsByApp.keys.filter { it !in packages }.toSet()
-        val allPackages = packages + universalOnlyPackages
+        // Project V7 supported apps are defined by the Project V7 catalog only.
+        // Inherited Morphe patch records stay in storage but do not populate this home list.
+        val allPackages = packages
 
         val allSlots = allPackages.flatMap { pkg ->
             homeAppSlots(pkg, recordsByApp[pkg].orEmpty())

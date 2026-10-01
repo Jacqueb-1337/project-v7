@@ -586,7 +586,7 @@ private fun PatcherScreenContent(
                     PatchingSuccess(
                         packageName = patcherViewModel.packageName,
                         version = patcherViewModel.version,
-                        patchCount = patcherViewModel.patchCount,
+                        patchCount = patcherViewModel.displayPatchCount,
                         sources = patchSources,
                         installState = shownInstallState,
                         installedPackageName = installedPackageName,
@@ -630,7 +630,7 @@ private fun PatcherScreenContent(
                     PatchingFailed(
                         packageName = patcherViewModel.packageName,
                         version = patcherViewModel.version,
-                        patchCount = patcherViewModel.patchCount,
+                        patchCount = patcherViewModel.displayPatchCount,
                         sources = patchSources,
                         errorMessage = state.errorMessage,
                         onHomeClick = onBackClick,

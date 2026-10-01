@@ -1870,7 +1870,7 @@ class HomeViewModel(
                 }.getOrNull()
             } ?: return@withContext false
 
-            val catalog = Pv7CatalogLoader(app).load()
+            val catalog = Pv7CatalogLoader(app).load(refreshRemote = false)
             val target = Pv7AppTarget(
                 packageId = selectedApp.packageName,
                 versionName = selectedApp.version,
@@ -1927,9 +1927,15 @@ class HomeViewModel(
                 }
 
                 if (selectedApp != null) {
-                    // Saved file may be signed with our keystore - skip signature check.
-                    // Version/versionCode check still runs via processSelectedApp.
-                    processSelectedApp(selectedApp, skipSplitCheck = true)
+                    val isPv7CatalogApp = pendingPv7SupportedPackageName == packageName ||
+                        apps.pv7SupportedApp(packageName) != null
+                    if (isPv7CatalogApp) {
+                        pendingPv7SupportedPackageName = null
+                        proceedWithPatching(selectedApp, emptyMap(), emptyMap())
+                    } else {
+                        // Saved file may be signed with our keystore - skip signature check.
+                        processSelectedApp(selectedApp, skipSplitCheck = true)
+                    }
                 } else {
                     cleanupPendingData()
                 }
@@ -2411,7 +2417,7 @@ class HomeViewModel(
 
         viewModelScope.launch {
             val sourceContext = withContext(Dispatchers.IO) {
-                val catalog = Pv7CatalogLoader(app).load()
+                val catalog = Pv7CatalogLoader(app).load(refreshRemote = false)
                 val apkFile = when (selectedApp) {
                     is SelectedApp.Local -> selectedApp.file
                     is SelectedApp.Installed -> runCatching {

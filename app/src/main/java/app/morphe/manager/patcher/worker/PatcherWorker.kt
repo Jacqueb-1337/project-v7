@@ -541,7 +541,8 @@ class PatcherWorker(
                             versionName = sourceVersionName,
                             versionCode = sourceVersionCode,
                             launcherIcon = launcherIcon,
-                            guestPackageName = guestPackage
+                            guestPackageName = guestPackage,
+                            requestedPermissions = sourceInfo?.requestedPermissions?.toSet().orEmpty()
                         ),
                         assets = applicationContext.assets,
                         selectedModules = pv7BuildPlan.selectedModules

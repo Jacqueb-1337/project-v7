@@ -3,6 +3,10 @@ package app.morphe.manager.domain.pv7
 import android.content.res.AssetManager
 import com.reandroid.apk.ApkModule
 import com.reandroid.archive.FileInputSource
+import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -14,7 +18,8 @@ data class Pv7WrapperConfig(
     val versionName: String? = null,
     val versionCode: Int? = null,
     val launcherIcon: File? = null,
-    val guestPackageName: String? = null
+    val guestPackageName: String? = null,
+    val requestedPermissions: Set<String> = emptySet()
 )
 
 data class Pv7GuestPayload(
@@ -121,6 +126,15 @@ class Pv7WrapperAssembler {
             config.versionName?.takeIf { it.isNotBlank() }?.let(manifest::setVersionName)
             config.versionCode?.takeIf { it > 0 }?.let(manifest::setVersionCode)
 
+            config.requestedPermissions
+                .filter { it.isNotBlank() }
+                .forEach { permission ->
+                    if (manifest.getUsesPermission(permission) == null) {
+                        manifest.addUsesPermission(permission)
+                    }
+                }
+            applyDocumentsProviders(manifest, selectedModules, config.packageName)
+
             replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
             replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
@@ -144,6 +158,52 @@ class Pv7WrapperAssembler {
         }
     }
 
+    private fun applyDocumentsProviders(
+        manifest: AndroidManifestBlock,
+        selectedModules: List<Pv7ModuleManifest>,
+        packageName: String
+    ) {
+        val providers = selectedModules.flatMap { module ->
+            module.operations.mapNotNull { operation ->
+                if (operation.type != "wrapper.addDocumentsProvider") return@mapNotNull null
+                val value = operation.value as? JsonObject
+                    ?: throw IOException("Module " + module.id + " has invalid documents-provider config")
+                val className = value["className"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }
+                    ?: throw IOException("Module " + module.id + " documents provider is missing className")
+                val authoritySuffix = value["authoritySuffix"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }
+                    ?: ".documents"
+                className to authoritySuffix
+            }
+        }
+
+        val application = manifest.orCreateApplicationElement
+        providers.distinct().forEach { (className, authoritySuffix) ->
+            if (manifest.listApplicationElementsByTag("provider").any {
+                    AndroidManifestBlock.getAndroidNameValue(it) == className
+                }) {
+                return@forEach
+            }
+
+            val provider = application.newElement("provider")
+            provider.createAndroidAttribute("name", android.R.attr.name)
+                .setValueAsString(className)
+            provider.createAndroidAttribute("authorities", android.R.attr.authorities)
+                .setValueAsString(packageName + authoritySuffix)
+            provider.createAndroidAttribute("exported", android.R.attr.exported)
+                .setValueAsBoolean(true)
+            provider.createAndroidAttribute("grantUriPermissions", android.R.attr.grantUriPermissions)
+                .setValueAsBoolean(true)
+            provider.createAndroidAttribute("permission", android.R.attr.permission)
+                .setValueAsString("android.permission.MANAGE_DOCUMENTS")
+
+            val intentFilter = provider.newElement("intent-filter")
+            val action = intentFilter.newElement("action")
+            action.createAndroidAttribute("name", android.R.attr.name)
+                .setValueAsString("android.content.action.DOCUMENTS_PROVIDER")
+        }
+    }
     private fun applyGuestPackageOverride(
         apk: ApkModule,
         guestPackageName: String,

@@ -469,6 +469,7 @@ class PatcherViewModel(
     val outputFile = tempDir.resolve("output.apk")
 
     val patchCount = input.selectedPatches.values.sumOf { it.size }
+    val displayPatchCount = if (pv7ModuleIds.isNotEmpty()) pv7ModuleIds.size else patchCount
 
     private val restoredProgress: Bundle? = savedStateHandle[KEY_PROGRESS]
 
@@ -490,7 +491,11 @@ class PatcherViewModel(
 
     val steps: List<Step> get() = patchRun.steps
     val progress: Float get() = patchRun.progress
-    val patchesProgress get() = patchRun.patchesProgress
+    val patchesProgress get() = if (pv7ModuleIds.isNotEmpty()) {
+        (if (_patcherSucceeded.value == true) pv7ModuleIds.size else 0) to pv7ModuleIds.size
+    } else {
+        patchRun.patchesProgress
+    }
 
     private val workManager = WorkManager.getInstance(app)
     private val _patcherSucceeded = MutableStateFlow<Boolean?>(null)
