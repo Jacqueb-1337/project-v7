@@ -157,6 +157,7 @@ class PatcherViewModel(
     private val selectedApp = input.selectedApp
     val packageName = selectedApp.packageName
     val version = selectedApp.version
+    val pv7ModuleIds: Set<String> = input.pv7ModuleIds
 
     /**
      * How the finished APK differs from the install this run was aimed at, or null when it lands

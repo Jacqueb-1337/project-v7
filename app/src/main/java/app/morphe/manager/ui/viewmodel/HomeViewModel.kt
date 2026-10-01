@@ -36,6 +36,7 @@ import app.morphe.manager.domain.installer.RootInstaller
 import app.morphe.manager.domain.installer.UninstallCancelledException
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.domain.pv7.*
 import app.morphe.manager.domain.repository.PatchBundleRepository.LocalFileCheck
 import app.morphe.manager.patcher.patch.*
 import app.morphe.manager.patcher.patch.PatchBundleInfo.Extensions.toPatchSelection
@@ -125,7 +126,8 @@ data class QuickPatchParams(
     val selectedApp: SelectedApp,
     val patches: PatchSelection,
     val options: Options,
-    val targetPackageName: String? = null
+    val targetPackageName: String? = null,
+    val pv7ModuleIds: Set<String> = emptySet()
 )
 
 
@@ -259,6 +261,19 @@ class HomeViewModel(
         pendingMppManifest = null
     }
 
+    data class Pv7PendingPatchRun(
+        val selectedApp: SelectedApp,
+        val patches: PatchSelection,
+        val options: Options,
+        val targetPackageName: String?,
+        val catalog: Pv7LoadedCatalog,
+        val target: Pv7AppTarget,
+        val explicitModuleIds: Set<String>,
+        val resolution: Pv7ResolutionPlan
+    )
+
+    var pv7PendingRun by mutableStateOf<Pv7PendingPatchRun?>(null)
+        private set
     // Expert mode state
     var showExpertModeDialog by mutableStateOf(false)
     var expertModeSelectedApp by mutableStateOf<SelectedApp?>(null)
@@ -2261,22 +2276,125 @@ class HomeViewModel(
         patches: PatchSelection,
         options: Options
     ) {
-        // Dismiss InstalledAppInfoDialog here, right before navigating to PatcherScreen.
-        // This ensures there is never a gap between the info dialog closing and the next screen appearing
+        // Every run passes through Project V7 compatibility selection before the patcher starts.
+        // This keeps simple mode from silently bypassing maintainer-tested module recommendations.
         dismissInstalledAppInfo()
+        val targetPackageName = pendingRepatchPackageName
 
+        viewModelScope.launch {
+            val (catalog, target) = withContext(Dispatchers.IO) {
+                val catalog = Pv7CatalogLoader(app.assets).load()
+                val apkFile = when (selectedApp) {
+                    is SelectedApp.Local -> selectedApp.file
+                    is SelectedApp.Installed -> runCatching {
+                        File(app.packageManager.getApplicationInfo(selectedApp.packageName, 0).sourceDir)
+                    }.getOrNull()
+                }
+                val target = Pv7AppTarget(
+                    packageId = selectedApp.packageName,
+                    versionName = selectedApp.version,
+                    abis = apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
+                    engine = apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
+                )
+                catalog to target
+            }
+
+            val resolution = Pv7CatalogResolver.resolve(
+                target = target,
+                modules = catalog.modules,
+                profiles = catalog.profiles
+            )
+
+            val relevantModules = resolution.visibleModules.filter {
+                it.selected || it.badge != Pv7ModuleBadge.UNTESTED
+            }
+            if (relevantModules.isEmpty()) {
+                startPatchingNow(
+                    selectedApp, patches, options, targetPackageName, emptySet()
+                )
+                return@launch
+            }
+
+            val explicitModuleIds = if (resolution.profile != null) {
+                resolution.profile.recommendedModules.toSet()
+            } else {
+                resolution.visibleModules
+                    .filter { it.badge == Pv7ModuleBadge.ENGINE_SUGGESTED && it.selected }
+                    .mapTo(linkedSetOf()) { it.manifest.id }
+            }
+
+            pv7PendingRun = Pv7PendingPatchRun(
+                selectedApp = selectedApp,
+                patches = patches,
+                options = options,
+                targetPackageName = targetPackageName,
+                catalog = catalog,
+                target = target,
+                explicitModuleIds = explicitModuleIds,
+                resolution = resolution
+            )
+        }
+    }
+
+    fun togglePv7Module(moduleId: String) {
+        val state = pv7PendingRun ?: return
+        val row = state.resolution.visibleModules.firstOrNull { it.manifest.id == moduleId } ?: return
+        val isExplicit = moduleId in state.explicitModuleIds
+        val requiredOnly = row.selected && !isExplicit
+        if (requiredOnly) return
+
+        val explicit = if (isExplicit) {
+            state.explicitModuleIds - moduleId
+        } else {
+            state.explicitModuleIds + moduleId
+        }
+        val resolution = Pv7CatalogResolver.resolve(
+            target = state.target,
+            modules = state.catalog.modules,
+            profiles = state.catalog.profiles,
+            userSelectedModuleIds = explicit
+        )
+        pv7PendingRun = state.copy(
+            explicitModuleIds = explicit,
+            resolution = resolution
+        )
+    }
+
+    fun confirmPv7Selection() {
+        val state = pv7PendingRun ?: return
+        pv7PendingRun = null
+        startPatchingNow(
+            selectedApp = state.selectedApp,
+            patches = state.patches,
+            options = state.options,
+            targetPackageName = state.targetPackageName,
+            pv7ModuleIds = state.resolution.selectedModuleIds
+        )
+    }
+
+    fun dismissPv7Selection() {
+        pv7PendingRun = null
+        cleanupPendingData()
+    }
+
+    private fun startPatchingNow(
+        selectedApp: SelectedApp,
+        patches: PatchSelection,
+        options: Options,
+        targetPackageName: String?,
+        pv7ModuleIds: Set<String>
+    ) {
         onStartQuickPatch?.invoke(
             QuickPatchParams(
                 selectedApp = selectedApp,
                 patches = patches,
                 options = options,
-                // Handed over before the state below is cleared, since the run has no other way
-                // to learn which install it was started for
-                targetPackageName = pendingRepatchPackageName
+                targetPackageName = targetPackageName,
+                pv7ModuleIds = pv7ModuleIds
             )
         )
 
-        // Clean only UI state
+        // Clean only UI state. The selected APK belongs to the patcher from this point onward.
         pendingPackageName = null
         pendingRepatchPackageName = null
         pendingAppName = null
@@ -2288,7 +2406,6 @@ class HomeViewModel(
         showDownloadInstructionsDialog = false
         showFilePickerPromptDialog = false
     }
-
     /**
      * All patches per bundle with their enabled state, sorted for display.
      * Recomputed whenever [expertModeBundles] or [expertModePatches] change.

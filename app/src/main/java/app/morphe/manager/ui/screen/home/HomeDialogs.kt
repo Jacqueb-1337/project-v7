@@ -410,6 +410,19 @@ fun HomeDialogs(
         )
     }
 
+    homeViewModel.pv7PendingRun?.let { state ->
+        Pv7CompatibilityDialog(
+            packageName = state.selectedApp.packageName,
+            version = state.selectedApp.version,
+            resolution = state.resolution,
+            explicitModuleIds = state.explicitModuleIds,
+            catalogIssues = state.catalog.issues,
+            onToggleModule = homeViewModel::togglePv7Module,
+            onProceed = homeViewModel::confirmPv7Selection,
+            onDismiss = homeViewModel::dismissPv7Selection
+        )
+    }
+
     // Expert Mode Dialog
     if (homeViewModel.showExpertModeDialog) {
         // The dialogs raised over the selection wear the app's color, as the selection does
