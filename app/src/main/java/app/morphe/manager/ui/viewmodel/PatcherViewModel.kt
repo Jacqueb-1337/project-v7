@@ -973,6 +973,7 @@ class PatcherViewModel(
             },
             onProgress = patchRun::onProgress,
             patchSources = patchSourcesForLog,
+            pv7ModuleIds = pv7ModuleIds,
         )
     }
 

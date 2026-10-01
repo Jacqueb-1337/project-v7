@@ -29,6 +29,7 @@ import app.morphe.manager.domain.manager.KeystoreManager
 import app.morphe.manager.domain.manager.PreferencesManager
 import app.morphe.manager.domain.repository.InstalledAppRepository
 import app.morphe.manager.domain.repository.OriginalApkRepository
+import app.morphe.manager.domain.pv7.Pv7BuildPlanner
 import app.morphe.manager.domain.worker.Worker
 import app.morphe.manager.domain.worker.WorkerRepository
 import app.morphe.manager.patcher.logger.Logger
@@ -79,6 +80,7 @@ class PatcherWorker(
         val setInputFile: suspend (File, Boolean, Boolean) -> Unit,
         val onProgress: ProgressEventHandler,
         val patchSources: List<PatchSourceRef> = emptyList(),
+        val pv7ModuleIds: Set<String> = emptySet(),
         /**
          * Batch runs announce the whole queue once instead of every app, so the completion
          * tone and notification are suppressed per item.
@@ -366,6 +368,24 @@ class PatcherWorker(
             // APK alone and says nothing about the split its native libraries live in
             val apkArchitecture = ApkArchitectureResolver.resolve(args.input, pm)
             val selectedCount = args.selectedPatches.values.sumOf { it.size }
+            val pv7BuildPlan = Pv7BuildPlanner(applicationContext.assets).create(args.pv7ModuleIds)
+
+            if (pv7BuildPlan.selectedModuleIds.isNotEmpty()) {
+                args.logger.info(
+                    "PV7 plan modules=" + pv7BuildPlan.selectedModuleIds.sorted().joinToString(",") +
+                        " core=" + pv7BuildPlan.enableCoreCompatibility +
+                        " compat=" + pv7BuildPlan.compatModules.sorted().joinToString(",")
+                )
+
+                if (pv7BuildPlan.requiredOptions.isNotEmpty()) {
+                    val missing = pv7BuildPlan.requiredOptions.joinToString { requirement ->
+                        requirement.moduleId + "." + requirement.optionKey
+                    }
+                    throw IllegalStateException(
+                        "Project V7 patch option values are required before building: " + missing
+                    )
+                }
+            }
 
             // Log device environment for diagnostics
             val deviceStats = applicationContext.deviceStats()
@@ -420,6 +440,13 @@ class PatcherWorker(
                 // CoroutineRuntime starts memory polling internally; only log the heap size here
                 args.logger.logCoroutineHeap()
                 args.logger.info("$LOG_WORKER_PREFIX_RUNTIME coroutine")
+            }
+
+            if (pv7BuildPlan.requiresWrapper) {
+                throw IllegalStateException(
+                    "Project V7 wrapper assembly is not staged yet. " +
+                        "The compatibility plan was validated, but this build will not emit a plain APK in its place."
+                )
             }
 
             // Execute patching. ProcessRuntime has its own retry loop that reduces memory on OOM
