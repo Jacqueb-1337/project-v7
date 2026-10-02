@@ -1,12 +1,23 @@
-# Project V7
+# Project V7 - Android 32-bit Compatibility Patcher
 
-<p align="center"><img src="docs/project-v7-icon.png" alt="Project V7 icon" width="180"></p>
+<p align="center"><img src="docs/project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo" width="180"></p>
 
-Project V7 is an Android patcher for getting older 32-bit Android apps running on newer 64-bit-only devices.
+Project V7 is an Android APK patcher and compatibility project for getting older 32-bit Android apps and games running on newer 64-bit-only Android devices.
 
-It started with one very specific problem: Cops N Robbers 3.0.2 is a 32-bit Unity game, and modern 64-bit-only phones cannot run it normally. Project V7 grew out of the work to make that game usable again without turning the whole phone into an old Android environment.
+It started with one very specific problem: Cops N Robbers 3.0.2 is a 32-bit ARMv7 Unity game, and modern 64-bit-only phones cannot run it normally. Project V7 grew out of the work to make that game usable again without turning the whole phone into an old Android environment.
 
 The long-term goal is to make the same approach reusable for other older Android apps and games.
+
+## Android 32-bit compatibility
+
+Project V7 is designed for cases such as:
+
+- running 32-bit Android apps on 64-bit-only Android phones and tablets
+- running older ARMv7 / armeabi-v7a Android apps when the device no longer provides native 32-bit app support
+- preserving older 32-bit Unity Android games
+- applying app-specific compatibility fixes without hard-coding every supported game into the patcher
+
+Project V7 is not a full Android emulator or virtual machine. For apps that need it, Project V7 builds a 64-bit host around the original 32-bit app and applies compatibility modules for the app, its engine, and the Android behavior it expects.
 
 ## Current status
 
@@ -18,7 +29,7 @@ The supported-app list is loaded from this repository. It is not hard-coded into
 
 ## Download
 
-Download the current Project V7 Patcher from the [Releases page](https://github.com/Jacqueb-1337/project-v7/releases/latest).
+Download the current Project V7 Android Patcher from the [Releases page](https://github.com/Jacqueb-1337/project-v7/releases/latest).
 
 For supported apps, Project V7 can use:
 
@@ -28,7 +39,7 @@ For supported apps, Project V7 can use:
 
 For Cops N Robbers, the "Help me find an APK" option points to the tested 3.0.2 source APK published in this repository's releases.
 
-## How it works
+## How Project V7 runs 32-bit Android apps
 
 Project V7 does more than change a manifest or rename an APK.
 
@@ -60,7 +71,7 @@ Adding a new supported app generally means adding its app entry, profile, and an
 
 A catalog-only change does not require a new Patcher APK.
 
-## Cops N Robbers
+## Cops N Robbers 3.0.2 Android compatibility
 
 Cops N Robbers 3.0.2 is currently the main test case for Project V7.
 
@@ -74,6 +85,20 @@ Tested source versions:
 - 3.0.2-cnr1
 
 The Project V7 catalog currently recommends the common compatibility layer and the CNR-specific compatibility module for this version.
+
+## Frequently asked questions
+
+### Can Project V7 run 32-bit Android apps on 64-bit-only phones?
+
+For supported apps, yes. Project V7 provides an app-specific compatibility path for running original 32-bit Android code on newer 64-bit-only Android devices.
+
+### Does Project V7 support ARMv7 / armeabi-v7a Android apps?
+
+ARMv7 / armeabi-v7a apps are a primary compatibility target, but support is app-specific. Project V7 does not automatically make every 32-bit APK compatible.
+
+### Does Project V7 support Cops N Robbers 3.0.2?
+
+Yes. Cops N Robbers 3.0.2 is the first tested app and the main compatibility test case for Project V7.
 
 ## Contributing
 
