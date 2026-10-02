@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://jacqueb-1337.github.io/project-v7/sitemap.xml
