@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project V7 | Run 32-bit Android Apps on 64-bit-only Devices</title>
+  <meta name="description" content="Project V7 is an Android APK patcher and compatibility project for running older 32-bit ARMv7 and armeabi-v7a apps and Unity games on modern 64-bit-only Android devices.">
+  <meta name="keywords" content="Project V7, Android 32-bit compatibility, 32-bit Android apps, 64-bit-only Android, ARMv7, armeabi-v7a, APK patcher, Unity Android games, Cops N Robbers">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://jacqueb-1337.github.io/project-v7/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Project V7 | Android 32-bit Compatibility Patcher">
+  <meta property="og:description" content="Run supported older 32-bit ARMv7 Android apps and games on newer 64-bit-only Android devices.">
+  <meta property="og:url" content="https://jacqueb-1337.github.io/project-v7/">
+  <meta property="og:image" content="https://jacqueb-1337.github.io/project-v7/project-v7-icon.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Project V7 | Android 32-bit Compatibility Patcher">
+  <meta name="twitter:description" content="Compatibility tooling for older 32-bit Android apps and Unity games on 64-bit-only devices.">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Project V7",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Android",
+    "url": "https://jacqueb-1337.github.io/project-v7/",
+    "downloadUrl": "https://github.com/Jacqueb-1337/project-v7/releases/latest",
+    "codeRepository": "https://github.com/Jacqueb-1337/project-v7",
+    "description": "An Android APK patcher and compatibility project for running supported older 32-bit ARMv7 and armeabi-v7a apps and Unity games on modern 64-bit-only Android devices."
+  }
+  </script>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e6edf3; }
+    body { margin: 0; }
+    main { max-width: 880px; margin: 0 auto; padding: 48px 22px 72px; }
+    header { text-align: center; padding: 28px 0 36px; }
+    img.logo { width: 150px; height: 150px; object-fit: contain; border-radius: 28px; }
+    h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin: 20px 0 12px; }
+    h2 { margin-top: 42px; }
+    p, li { line-height: 1.7; color: #c9d1d9; }
+    .lead { font-size: 1.18rem; max-width: 760px; margin: 0 auto; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 26px; }
+    .actions a { display: inline-block; padding: 11px 16px; border: 1px solid #30363d; border-radius: 8px; text-decoration: none; color: #f0f6fc; background: #21262d; }
+    .actions a.primary { background: #238636; border-color: #2ea043; }
+    code { background: #161b22; padding: 2px 5px; border-radius: 5px; }
+    footer { margin-top: 52px; padding-top: 24px; border-top: 1px solid #30363d; font-size: .92rem; }
+    a { color: #58a6ff; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img class="logo" src="project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo">
+    <h1>Project V7</h1>
+    <p class="lead">An Android APK patcher and compatibility project for running supported older 32-bit ARMv7 and armeabi-v7a apps and games on newer 64-bit-only Android devices.</p>
+    <div class="actions">
+      <a class="primary" href="https://github.com/Jacqueb-1337/project-v7/releases/latest">Download Project V7</a>
+      <a href="https://github.com/Jacqueb-1337/project-v7">View source on GitHub</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>Android 32-bit compatibility on 64-bit-only phones</h2>
+    <p>Many older Android apps and games ship only 32-bit native code. Newer Android devices may no longer provide native 32-bit app support. Project V7 provides an app-specific compatibility path for supported software instead of requiring an old Android device or a full virtual machine.</p>
+    <p>Project V7 targets older ARMv7 and <code>armeabi-v7a</code> Android software, including legacy Unity games. Support is profile-based, so compatibility fixes can be added per app without hard-coding every supported title into the patcher.</p>
+  </section>
+
+  <section>
+    <h2>How Project V7 works</h2>
+    <p>For apps that need it, Project V7 builds a 64-bit host around the original 32-bit app and applies compatibility modules for the app, its engine, and Android behavior it expects. The patcher reads its supported-app catalog and compatibility profiles from the Project V7 repository.</p>
+  </section>
+
+  <section>
+    <h2>Cops N Robbers 3.0.2</h2>
+    <p>Cops N Robbers 3.0.2 is Project V7's first tested application and its main compatibility test case. The original game is a 32-bit ARMv7 Unity title. Project V7 includes a tested compatibility profile for it.</p>
+  </section>
+
+  <section>
+    <h2>Frequently asked questions</h2>
+    <h3>Can Project V7 run 32-bit Android apps on 64-bit-only phones?</h3>
+    <p>For supported apps, yes. Project V7 provides app-specific compatibility rather than claiming universal support for every 32-bit APK.</p>
+    <h3>Does Project V7 support ARMv7 and armeabi-v7a?</h3>
+    <p>Yes. ARMv7 and armeabi-v7a Android apps are primary compatibility targets.</p>
+    <h3>Is Project V7 a full Android emulator?</h3>
+    <p>No. It uses a 64-bit host and compatibility modules for supported apps instead of emulating an entire Android environment.</p>
+  </section>
+
+  <footer>
+    <p>Project V7 is open source under GPLv3. See the repository for source code, documentation, releases, supported apps, and contribution details.</p>
+  </footer>
+</main>
+</body>
+</html>
