@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches:
-      - dev
+      - main
 
 concurrency:
   group: compile-${{ github.ref }}
@@ -20,16 +20,25 @@ jobs:
 
       # Fork PRs cannot access repository secrets by design, so we detect them
       # here and fall back to an unsigned debug build instead of a signed release.
-      - name: Determine if PR is from a fork
+      - name: Select APK build channel
         id: fork_check
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+          KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] \
-             && [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
+          if { [ "${{ github.event_name }}" = "pull_request" ] \
+             && [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; } \
+             || [ -z "$KEYSTORE_B64" ] \
+             || [ -z "$KEYSTORE_PASSWORD" ] \
+             || [ -z "$KEYSTORE_ENTRY_ALIAS" ] \
+             || [ -z "$KEYSTORE_ENTRY_PASSWORD" ]; then
             echo "is_fork=true" >> "$GITHUB_OUTPUT"
             echo "gradle_task=assembleDebug" >> "$GITHUB_OUTPUT"
             echo "apk_dir=app/build/outputs/apk/debug" >> "$GITHUB_OUTPUT"
             echo "apk_suffix=-debug" >> "$GITHUB_OUTPUT"
-            echo "PR from fork detected: building unsigned debug APK"
+            echo "::notice::Building debug preview; fork PR or PV7 signing credentials are not configured"
           else
             echo "is_fork=false" >> "$GITHUB_OUTPUT"
             echo "gradle_task=assembleRelease" >> "$GITHUB_OUTPUT"
@@ -41,8 +50,8 @@ jobs:
       - name: Restore release keystore
         if: steps.fork_check.outputs.is_fork == 'false'
         run: |
-          echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > app/keystore.jks
-          ls -la app/keystore.jks
+          printf '%s' "${{ secrets.KEYSTORE_B64 }}" | base64 -d > app/keystore.jks
+          test -s app/keystore.jks || { echo "::error::Empty PV7 signing keystore"; exit 1; }
 
       - name: Setup Java
         uses: actions/setup-java@v6
