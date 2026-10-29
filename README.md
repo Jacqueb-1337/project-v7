@@ -31,6 +31,8 @@ The supported-app list is loaded from this repository. It is not hard-coded into
 
 Download the current Project V7 Android Patcher from the [Releases page](https://github.com/Jacqueb-1337/project-v7/releases/latest).
 
+**Package identity:** Starting with v1.33.4, Project V7 uses `me.jacqueb.projectv7`, a separate Android application from Morphe Manager (`app.morphe.manager`). The earlier PV7 production v1.33.3 mistakenly reused Morphe's package name; do not use that release to update Morphe. Older PV7 debug builds (`app.morphe.manager.debug`) also install separately and cannot be automatically upgraded to production.
+
 For supported apps, Project V7 can use:
 
 - an APK you already have
