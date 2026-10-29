@@ -77,6 +77,24 @@ A corresponding, **untested** profile recommends the IDs, not the paths:
 
 Dependencies (`dependencies`), blacklist rule IDs (`moduleId`), and conditional blacklist references (`whenAnySelected`) also use module IDs.
 
+## Test an unlisted game or a fork catalog
+
+Use **Select APK** to choose any APK. PV7 presents its compatibility selector
+even without Morphe patches or a maintainer-tested game profile. Unlisted games
+are explicitly marked experimental. The current wrapper expects a legacy Unity
+ARMv7 **single APK**; other engines may be inspected but are not yet supported.
+
+To test a fork, use **Catalog repository (advanced)** in the PV7 compatibility
+selector, enter `owner/repository`, and press **Load catalog from repository**.
+PV7 loads and validates that repository's `main/catalog/` directory with a
+separate cache. Only trust sources you control or have reviewed: modules can
+contain APK payloads.
+
+Keep new profiles `tested: false` until genuinely tested. You do not need a
+game-specific module to select `core-compat`, and module references use IDs
+rather than file paths. `unity-4.6-compat` has only been tested through CNR's
+Unity **4.6.1f1** ARMv7 runtime.
+
 ## Test and validate before submitting
 
 ```bash

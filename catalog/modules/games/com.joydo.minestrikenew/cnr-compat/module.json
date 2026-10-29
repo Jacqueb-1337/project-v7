@@ -1,49 +1,49 @@
 {
-    "id":  "cnr-compat",
-    "name":  "CNR64 Compatibility",
-    "version":  "1.0.5",
-    "kind":  "game",
-    "description":  "Cops N Robbers 3.0.2 compatibility module for its legacy Unity 4.6 runtime.",
-    "targets":  {
-                    "packageIds":  [
-                                       "com.joydo.minestrikenew"
-                                   ],
-                    "versions":  [
-                                     "3.0.2",
-                                     "3.0.2-cnr1"
-                                 ],
-                    "abis":  [
-                                 "armeabi-v7a"
-                             ],
-                    "engines":  [
-                                    "unity"
-                                ],
-                    "engineVersions":  [
-                                           "4.6.*"
-                                       ]
-                },
-    "dependencies":  [
-                         "core-compat"
-                     ],
-    "operations":  [
-                       {
-                           "type":  "compat.module",
-                           "value":  "cnr"
-                       },
-                       {
-                           "type":  "wrapper.addDocumentsProvider",
-                           "value":  {
-                                         "className":  "app.projectv7.wrapper.CNRModsDocumentsProvider",
-                                         "authoritySuffix":  ".documents"
-                                     }
-                       }
-                   ],
-    "payloadFiles":  [
-                         "assets/pv7/compat.properties",
-                         "assets/pv7/host.properties",
-                         "assets/bootstrap/CNRModManager.dll",
-                         "assets/bootstrap/CNRModManager.dll.sha256",
-                         "assets/bootstrap/repo-sources.txt",
-                         "assets/bootstrap/repo-sources.txt.sha256"
-                     ]
+  "id": "cnr-compat",
+  "name": "CNR64 Compatibility",
+  "version": "1.0.5",
+  "kind": "game",
+  "description": "CNR-specific behavior and validated Unity 4.6.1f1 native patch. Requires the general legacy Unity 4.6 policy; CNR absolute addresses are not used by other games.",
+  "targets": {
+    "packageIds": [
+      "com.joydo.minestrikenew"
+    ],
+    "versions": [
+      "3.0.2",
+      "3.0.2-cnr1"
+    ],
+    "abis": [
+      "armeabi-v7a"
+    ],
+    "engines": [
+      "unity"
+    ],
+    "engineVersions": [
+      "4.6.*"
+    ]
+  },
+  "dependencies": [
+    "unity-4.6-compat"
+  ],
+  "operations": [
+    {
+      "type": "compat.module",
+      "value": "cnr"
+    },
+    {
+      "type": "wrapper.addDocumentsProvider",
+      "value": {
+        "className": "app.projectv7.wrapper.CNRModsDocumentsProvider",
+        "authoritySuffix": ".documents"
+      }
+    }
+  ],
+  "payloadFiles": [
+    "assets/pv7/compat.properties",
+    "assets/pv7/host.properties",
+    "assets/bootstrap/CNRModManager.dll",
+    "assets/bootstrap/CNRModManager.dll.sha256",
+    "assets/bootstrap/repo-sources.txt",
+    "assets/bootstrap/repo-sources.txt.sha256"
+  ]
 }

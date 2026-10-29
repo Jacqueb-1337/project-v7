@@ -14,6 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.morphe.manager.domain.pv7.Pv7AppTarget
 import app.morphe.manager.domain.pv7.Pv7ModuleBadge
 import app.morphe.manager.domain.pv7.Pv7PatchOperation
 import app.morphe.manager.domain.pv7.Pv7ResolutionPlan
@@ -40,10 +46,13 @@ import app.morphe.manager.util.rememberAdaptiveFilePicker
 internal fun Pv7CompatibilityDialog(
     packageName: String,
     version: String?,
+    target: Pv7AppTarget,
+    catalogRepository: String,
     resolution: Pv7ResolutionPlan,
     explicitModuleIds: Set<String>,
     optionValues: Map<String, String>,
     catalogIssues: List<String>,
+    onCatalogChange: (String) -> Unit,
     onToggleModule: (String) -> Unit,
     onOptionChange: (String, String, String) -> Unit,
     onCustomIconPicked: (String, String, Uri) -> Unit,
@@ -51,8 +60,9 @@ internal fun Pv7CompatibilityDialog(
     onDismiss: () -> Unit
 ) {
     val shownModules = resolution.visibleModules.filter {
-        it.selected || it.badge != Pv7ModuleBadge.UNTESTED
+        it.selected || it.badge != Pv7ModuleBadge.UNTESTED || it.manifest.id == "core-compat"
     }
+    var editingCatalog by remember(catalogRepository) { mutableStateOf(catalogRepository) }
     val testedRecommendations = resolution.profile?.recommendedModules.orEmpty().toSet()
     val missingOptions = shownModules
         .filter { it.selected }
@@ -83,7 +93,9 @@ internal fun Pv7CompatibilityDialog(
             AppDialogButtonRow(
                 primaryText = "Continue",
                 onPrimaryClick = onProceed,
-                primaryEnabled = !missingOptions,
+                primaryEnabled = !missingOptions &&
+                    resolution.selectedModuleIds.isNotEmpty() &&
+                    (catalogIssues + resolution.issues).isEmpty(),
                 secondaryText = "Cancel",
                 onSecondaryClick = onDismiss
             )
@@ -117,12 +129,59 @@ internal fun Pv7CompatibilityDialog(
                     }
                 }
             } else {
-                Text(
-                    text = "No tested game profile matched. Compatible general and engine-specific modules are shown below.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Experimental, untested game",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        Text(
+                            "No maintainer-tested module profile matches this APK. You can try " +
+                                "the general compatibility modules, but they might fail to build, " +
+                                "launch, render, or play correctly. These suggestions are not " +
+                                "proof of game support.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "Detected: " + (target.engine?.let {
+                                it.id + " " + (it.version ?: "(unknown version)")
+                            } ?: "unknown engine") + " ? " +
+                                (target.abis.takeIf { it.isNotEmpty() }?.joinToString()
+                                    ?: "unknown ABI"),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (target.engine?.id != "unity" || "armeabi-v7a" !in target.abis) {
+                            Text(
+                                "The current wrapper assembly expects a single legacy Unity " +
+                                    "ARMv7 APK with libunity.so and libmono.so. Other APKs can " +
+                                    "be inspected here but cannot yet be promised to build.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
             }
+
+            Text("Catalog repository (advanced)", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Defaults to the official PV7 catalog. To test a fork, enter owner/repository " +
+                    "and reload. Only use catalogs you trust: modules may include APK payloads.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AppDialogTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = editingCatalog,
+                onValueChange = { editingCatalog = it },
+                label = { Text("GitHub owner/repository") }
+            )
+            OutlinedButton(
+                enabled = editingCatalog.trim() != catalogRepository,
+                onClick = { onCatalogChange(editingCatalog) }
+            ) { Text("Load catalog from repository") }
 
             val allIssues = (catalogIssues + resolution.issues).distinct()
             if (allIssues.isNotEmpty()) {

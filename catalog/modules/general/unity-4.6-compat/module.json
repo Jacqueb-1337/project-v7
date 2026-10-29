@@ -1,19 +1,33 @@
 {
   "id": "unity-4.6-compat",
   "name": "Unity 4.6 Compatibility",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "general",
   "category": "Engine compatibility",
-  "description": "General Project V7 compatibility policy for ARMv7 games built with Unity 4.6.x. Suggested automatically when that engine family is detected and no game-tested profile overrides it.",
+  "description": "Experimental legacy Unity 4.6.x ARMv7 private-storage compatibility policy. Tested only with Cops N Robbers 3.0.2 on Unity 4.6.1f1; other games are unverified.",
   "targets": {
-    "abis": ["armeabi-v7a"],
-    "engines": ["unity"],
-    "engineVersions": ["4.6.*"]
+    "abis": [
+      "armeabi-v7a"
+    ],
+    "engines": [
+      "unity"
+    ],
+    "engineVersions": [
+      "4.6.*"
+    ]
   },
   "suggestedWhenMatched": true,
-  "dependencies": ["core-compat"],
+  "dependencies": [
+    "core-compat"
+  ],
   "conflicts": [],
   "operations": [
-    { "type": "compat.module", "value": "unity-4.6" }
+    {
+      "type": "compat.module",
+      "value": "unity-4.6"
+    }
+  ],
+  "payloadFiles": [
+    "assets/pv7/compat.properties"
   ]
 }

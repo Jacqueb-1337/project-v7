@@ -36,6 +36,8 @@ import app.morphe.manager.domain.installer.RootInstaller
 import app.morphe.manager.domain.installer.UninstallCancelledException
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.domain.pv7.Pv7CatalogOrigin
+import app.morphe.manager.domain.pv7.Pv7CatalogRepository
 import app.morphe.manager.domain.pv7.*
 import app.morphe.manager.domain.repository.PatchBundleRepository.LocalFileCheck
 import app.morphe.manager.patcher.patch.*
@@ -272,7 +274,8 @@ class HomeViewModel(
         val explicitModuleIds: Set<String>,
         val resolution: Pv7ResolutionPlan,
         val optionValues: Map<String, String>,
-        val sourceDisplayName: String
+        val sourceDisplayName: String,
+        val catalogRepository: String
     )
 
     var pv7PendingRun by mutableStateOf<Pv7PendingPatchRun?>(null)
@@ -1840,16 +1843,15 @@ class HomeViewModel(
                             return@launch
                         }
 
-                        if (catalogPackage != null || hasTestedPv7Profile(result.app)) {
-                            pendingPv7SupportedPackageName = null
-                            proceedWithPatching(
-                                selectedApp = result.app,
-                                patches = emptyMap(),
-                                options = emptyMap()
-                            )
-                        } else {
-                            processSelectedApp(result.app)
-                        }
+                        // Every manually selected APK must reach the Project V7 module
+                        // selector, even when the game has no tested profile or Morphe patches.
+                        pendingPv7SupportedPackageName = null
+                        proceedWithPatching(
+                            selectedApp = result.app,
+                            patches = emptyMap(),
+                            options = emptyMap(),
+                            experimentalSelection = true
+                        )
                     }
                     is ApkLoadResult.Unreadable -> app.toast(app.getString(R.string.home_invalid_apk_unreadable))
                     is ApkLoadResult.NotAnApk -> app.toast(app.getString(R.string.home_invalid_apk_not_an_apk))
@@ -2410,7 +2412,8 @@ class HomeViewModel(
     fun proceedWithPatching(
         selectedApp: SelectedApp,
         patches: PatchSelection,
-        options: Options
+        options: Options,
+        experimentalSelection: Boolean = false
     ) {
         dismissInstalledAppInfo()
         val targetPackageName = pendingRepatchPackageName
@@ -2448,7 +2451,7 @@ class HomeViewModel(
             val relevantModules = resolution.visibleModules.filter {
                 it.selected || it.badge != Pv7ModuleBadge.UNTESTED
             }
-            if (relevantModules.isEmpty()) {
+            if (relevantModules.isEmpty() && !experimentalSelection) {
                 startPatchingNow(
                     selectedApp,
                     patches,
@@ -2483,7 +2486,48 @@ class HomeViewModel(
                     sourceDisplayName = sourceDisplayName,
                     existing = emptyMap()
                 ),
-                sourceDisplayName = sourceDisplayName
+                sourceDisplayName = sourceDisplayName,
+                catalogRepository = Pv7CatalogLoader(app).repository
+            )
+        }
+    }
+
+    /** Explicit contributor override, never treated as tested support. */
+    fun changePv7CatalogRepository(raw: String) {
+        val state = pv7PendingRun ?: return
+        val repo = runCatching { Pv7CatalogRepository.validate(raw) }
+            .getOrElse {
+                app.toast("Use a GitHub repository such as owner/project-v7")
+                return
+            }
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                val loader = Pv7CatalogLoader(app)
+                val previous = loader.repository
+                loader.setRepository(repo)
+                val catalog = loader.load(refreshRemote = true)
+                if (catalog.origin == Pv7CatalogOrigin.BUNDLED && repo != previous) {
+                    loader.setRepository(previous)
+                    null
+                } else catalog
+            }
+            if (updated == null) {
+                app.toast("Could not load or validate that catalog. Previous source preserved.")
+                return@launch
+            }
+            val resolution = Pv7CatalogResolver.resolve(
+                target = state.target,
+                modules = updated.modules,
+                profiles = updated.profiles
+            )
+            pv7PendingRun = state.copy(
+                catalog = updated,
+                resolution = resolution,
+                explicitModuleIds = resolution.selectedModuleIds,
+                catalogRepository = repo,
+                optionValues = ensurePv7OptionDefaults(
+                    resolution, state.selectedApp, state.sourceDisplayName, emptyMap()
+                )
             )
         }
     }

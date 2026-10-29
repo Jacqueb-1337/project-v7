@@ -238,6 +238,7 @@ class Pv7WrapperAssembler {
         selectedModules: List<Pv7ModuleManifest>,
         scratchRoot: File
     ) {
+        val compatLayers = mutableListOf<String>()
         val ordered = selectedModules.sortedWith(
             compareBy<Pv7ModuleManifest> {
                 if (it.kind == Pv7ModuleKind.GENERAL) 0 else 1
@@ -255,7 +256,11 @@ class Pv7WrapperAssembler {
                     if (!source.isFile) {
                         throw IOException("PV7 module payload missing: " + module.id + "/" + relative)
                     }
-                    replaceFile(apk, source, relative)
+                    if (relative == COMPAT_PROPERTIES_APK_PATH) {
+                        compatLayers += source.readText(Charsets.UTF_8)
+                    } else {
+                        replaceFile(apk, source, relative)
+                    }
                 }
                 return@forEach
             }
@@ -270,7 +275,11 @@ class Pv7WrapperAssembler {
                     assets.open(payloadRoot + "/" + relative).use { input ->
                         FileOutputStream(target).use(input::copyTo)
                     }
-                    replaceFile(apk, target, relative)
+                    if (relative == COMPAT_PROPERTIES_APK_PATH) {
+                        compatLayers += target.readText(Charsets.UTF_8)
+                    } else {
+                        replaceFile(apk, target, relative)
+                    }
                 }
                 return@forEach
             }
@@ -287,6 +296,16 @@ class Pv7WrapperAssembler {
                     scratchRoot = moduleScratch
                 )
             }
+        }
+
+        if (compatLayers.isNotEmpty()) {
+            val templateText = apk.getInputSource(COMPAT_PROPERTIES_APK_PATH)
+                ?.openStream()?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val merged = mergePv7CompatProperties(listOf(templateText) + compatLayers)
+            val output = File(scratchRoot, "generated/merged-compat.properties")
+            output.parentFile?.mkdirs()
+            output.writeText(merged, Charsets.UTF_8)
+            replaceFile(apk, output, COMPAT_PROPERTIES_APK_PATH)
         }
     }
 

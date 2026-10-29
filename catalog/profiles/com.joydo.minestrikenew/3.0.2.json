@@ -1,13 +1,26 @@
 {
   "id": "cnr-3.0.2-tested",
   "packageId": "com.joydo.minestrikenew",
-  "versions": ["3.0.2", "3.0.2-cnr1"],
-  "abis": ["armeabi-v7a"],
-  "engines": ["unity"],
-  "engineVersions": ["4.6.*"],
+  "versions": [
+    "3.0.2",
+    "3.0.2-cnr1"
+  ],
+  "abis": [
+    "armeabi-v7a"
+  ],
+  "engines": [
+    "unity"
+  ],
+  "engineVersions": [
+    "4.6.*"
+  ],
   "maintainer": "Project V7",
   "tested": true,
-  "recommendedModules": ["core-compat", "cnr-compat"],
+  "recommendedModules": [
+    "core-compat",
+    "unity-4.6-compat",
+    "cnr-compat"
+  ],
   "blacklist": [],
-  "notes": "Known-good Project V7 configuration for Cops N Robbers 3.0.2 / 3.0.2-cnr1."
+  "notes": "CNR 3.0.2 ARMv7 libunity.so reports Unity 4.6.1f1. CNR-specific native patch and mods are game-binary scoped; this test does not establish compatibility for other Unity 4.6 games."
 }

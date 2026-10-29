@@ -41,3 +41,11 @@ If there is no matching tested profile, the patcher may suggest compatible gener
 A `.pv7patch` is a ZIP containing `module.json` at its root plus payload files referenced by that module. Custom patches are selected from local storage; Project V7 Patcher does not add third-party patch repositories.
 
 **Note:** a fork's patcher currently fetches its catalog from the official `Jacqueb-1337/project-v7` repository, not automatically from the fork.
+
+## Experimental Unity 4.6 compatibility
+
+`unity-4.6-compat` installs a shared legacy path-rewrite policy but is not a
+compatibility guarantee. Verified baseline: CNR 3.0.2 with Unity **4.6.1f1**
+ARMv7 only. Native CNR-specific patches and assets remain in `cnr-compat`.
+Use **Catalog repository (advanced)** in the manual APK compatibility selector
+to test a contributor's fork without claiming that a game is tested.

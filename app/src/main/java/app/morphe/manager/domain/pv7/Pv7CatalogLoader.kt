@@ -49,7 +49,21 @@ class Pv7CatalogLoader(
     }
 ) {
     private val assets: AssetManager get() = context.assets
-    private val cacheRoot: File get() = File(context.filesDir, "pv7/catalog")
+    private val preferences get() =
+        context.getSharedPreferences("pv7_catalog_sources", Context.MODE_PRIVATE)
+    val repository: String
+        get() = preferences.getString("repository", null)
+            ?.let { runCatching { Pv7CatalogRepository.validate(it) }.getOrNull() }
+            ?: Pv7CatalogRepository.OFFICIAL
+    private val cacheRoot: File
+        get() = File(context.filesDir, "pv7/catalog-" + repository.replace('/', '_'))
+
+    /** Explicitly chosen by the user when testing a contributor's fork. */
+    fun setRepository(repo: String) {
+        preferences.edit()
+            .putString("repository", Pv7CatalogRepository.validate(repo))
+            .apply()
+    }
 
     fun load(refreshRemote: Boolean = true): Pv7LoadedCatalog {
         if (refreshRemote) {
@@ -67,7 +81,8 @@ class Pv7CatalogLoader(
     }
 
     private fun refreshRemoteCache() {
-        val indexText = fetchText(OFFICIAL_INDEX_URL)
+        val baseUrl = Pv7CatalogRepository.baseUrl(repository)
+        val indexText = fetchText(baseUrl + "index.json")
         val index = json.decodeFromString<Pv7CatalogIndex>(stripBom(indexText))
         require(index.schemaVersion == 1) {
             "Unsupported PV7 catalog schema: " + index.schemaVersion
@@ -79,25 +94,25 @@ class Pv7CatalogLoader(
         writeText(File(tempRoot, "index.json"), indexText)
 
         index.modules.forEach { path ->
-            val moduleText = fetchText(OFFICIAL_BASE_URL + path)
+            val moduleText = fetchText(baseUrl + path)
             val moduleFile = safeChild(tempRoot, path)
             writeText(moduleFile, moduleText)
 
             val module = json.decodeFromString<Pv7ModuleManifest>(stripBom(moduleText))
             val moduleDir = path.substringBeforeLast('/')
             module.payloadFiles.forEach { relative ->
-                val payloadUrl = OFFICIAL_BASE_URL + moduleDir + "/payload/" + relative
+                val payloadUrl = baseUrl + moduleDir + "/payload/" + relative
                 val payloadPath = moduleDir + "/payload/" + relative
                 writeBytes(safeChild(tempRoot, payloadPath), fetchBytes(payloadUrl))
             }
         }
 
         index.profiles.forEach { path ->
-            writeText(safeChild(tempRoot, path), fetchText(OFFICIAL_BASE_URL + path))
+            writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
         }
 
         index.apps.forEach { path ->
-            writeText(safeChild(tempRoot, path), fetchText(OFFICIAL_BASE_URL + path))
+            writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
         }
 
         val validated = loadDirectory(tempRoot, Pv7CatalogOrigin.REMOTE)

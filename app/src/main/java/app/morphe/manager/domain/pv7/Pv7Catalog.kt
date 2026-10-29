@@ -250,10 +250,12 @@ object Pv7CatalogResolver {
                 manifest = module,
                 badge = badge,
                 selected = module.id in selected,
-                recommendationReason = if (module.id in recommended) {
-                    "Tested and recommended by the Project V7 compatibility profile for this app/version."
-                } else {
-                    null
+                recommendationReason = when {
+                    module.id in testedRecommended ->
+                        "Tested and recommended by the Project V7 compatibility profile."
+                    module.id in engineSuggested ->
+                        "Experimental engine match; this game has not been maintainer-tested."
+                    else -> null
                 }
             )
         }

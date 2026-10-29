@@ -478,10 +478,13 @@ fun HomeDialogs(
         Pv7CompatibilityDialog(
             packageName = state.selectedApp.packageName,
             version = state.selectedApp.version,
+            target = state.target,
+            catalogRepository = state.catalogRepository,
             resolution = state.resolution,
             explicitModuleIds = state.explicitModuleIds,
             optionValues = state.optionValues,
             catalogIssues = state.catalog.issues,
+            onCatalogChange = homeViewModel::changePv7CatalogRepository,
             onToggleModule = homeViewModel::togglePv7Module,
             onOptionChange = homeViewModel::updatePv7Option,
             onCustomIconPicked = homeViewModel::setPv7CustomIcon,
