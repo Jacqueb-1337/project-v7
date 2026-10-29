@@ -25,7 +25,7 @@ if [ -z "${APK_SRC}" ]; then
   exit 1
 fi
 
-APK_DST="${RELEASE_DIR}/morphe-manager-${VERSION}.apk"
+APK_DST="${RELEASE_DIR}/project-v7-patcher-${VERSION}.apk"
 mv "${APK_SRC}" "${APK_DST}"
 echo "Renamed APK to ${APK_DST}"
 
