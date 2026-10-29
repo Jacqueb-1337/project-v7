@@ -9,13 +9,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Translate
 import androidx.lifecycle.ViewModel
-import app.morphe.manager.util.MORPHE_WEBSITE_URL
+import app.morphe.manager.util.MANAGER_REPO_URL
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.brands.Github
-import compose.icons.fontawesomeicons.brands.RedditAlien
 
 data class SocialLink(
     val name: String,
@@ -26,35 +24,20 @@ data class SocialLink(
 class AboutViewModel : ViewModel() {
     companion object {
         val socials: List<SocialLink> = listOf(
-            SocialLink(
-                name = "Website",
-                url = MORPHE_WEBSITE_URL,
-                preferred = true
-            ),
-            SocialLink(
-                name = "Changelog",
-                url = "$MORPHE_WEBSITE_URL/changelog"
-            ),
-            SocialLink(
-                name = "GitHub",
-                url = "https://github.com/MorpheApp"
-            ),
-            SocialLink(
-                name = "Reddit",
-                url = "https://reddit.com/r/MorpheApp"
-            ),
-            SocialLink(
-                name = "Crowdin",
-                url = "$MORPHE_WEBSITE_URL/translate"
-            )
+            SocialLink(name = "GitHub", url = MANAGER_REPO_URL, preferred = true),
+            SocialLink(name = "Releases", url = "$MANAGER_REPO_URL/releases"),
+            SocialLink(name = "Report a bug", url = "$MANAGER_REPO_URL/issues"),
+            SocialLink(name = "Contribute", url = "$MANAGER_REPO_URL/blob/main/CONTRIBUTING.md"),
+            // Keep the inherited project's attribution accessible via PV7's own credits.
+            SocialLink(name = "Credits", url = "$MANAGER_REPO_URL#credits"),
         )
 
         private val socialIcons = mapOf(
-            "Website" to Icons.Outlined.Public,
             "GitHub" to FontAwesomeIcons.Brands.Github,
-            "Changelog" to Icons.AutoMirrored.Outlined.Article,
-            "Reddit" to FontAwesomeIcons.Brands.RedditAlien,
-            "Crowdin" to Icons.Outlined.Translate,
+            "Releases" to Icons.AutoMirrored.Outlined.Article,
+            "Report a bug" to Icons.AutoMirrored.Outlined.Article,
+            "Contribute" to Icons.Outlined.Public,
+            "Credits" to Icons.Outlined.Language,
         )
 
         fun getSocialIcon(name: String) = socialIcons[name] ?: Icons.Outlined.Language
