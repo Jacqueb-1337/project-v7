@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.morphe.manager.domain.pv7.Pv7AppTarget
+import app.morphe.manager.domain.pv7.Pv7ModuleKind
 import app.morphe.manager.domain.pv7.Pv7ModuleBadge
 import app.morphe.manager.domain.pv7.Pv7PatchOperation
 import app.morphe.manager.domain.pv7.Pv7ResolutionPlan
@@ -60,7 +61,7 @@ internal fun Pv7CompatibilityDialog(
     onDismiss: () -> Unit
 ) {
     val shownModules = resolution.visibleModules.filter {
-        it.selected || it.badge != Pv7ModuleBadge.UNTESTED || it.manifest.id == "core-compat"
+        it.selected || it.badge != Pv7ModuleBadge.UNTESTED || it.manifest.kind == Pv7ModuleKind.GENERAL
     }
     var editingCatalog by remember(catalogRepository) { mutableStateOf(catalogRepository) }
     val testedRecommendations = resolution.profile?.recommendedModules.orEmpty().toSet()
@@ -261,7 +262,7 @@ internal fun Pv7CompatibilityDialog(
                                 when {
                                     isRequired -> StatusBadge("Required", tone = SemanticTone.Warning)
                                     isRecommended -> StatusBadge("Recommended", tone = SemanticTone.Primary)
-                                    isSuggested -> StatusBadge("Suggested", tone = SemanticTone.Success)
+                                    isSuggested -> StatusBadge("Experimental", tone = SemanticTone.Warning)
                                     else -> StatusBadge("Optional", tone = SemanticTone.Neutral)
                                 }
                                 StatusBadge(module.version, tone = SemanticTone.Neutral)
