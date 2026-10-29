@@ -69,3 +69,18 @@ $env:PV7_COCOS_APK = "C:\Users\Jacqueb\Downloads\08093-Best-Park-v1-2-1.apk"
 
 **Do not** bypass `Pv7GuestBackend.canBuild` for Cocos until the native
 backend is present; staging alone is not enough to run the game.
+
+## Inspecting another Cocos2d-x APK
+
+Run the offline, standard-library-only inspection script:
+
+    python3 scripts/inspect_cocos_apk.py /path/to/game.apk
+
+It checks the ARM32 ELF header and reports DT_NEEDED libraries and
+JNI_OnLoad/Java_org_cocos2dx_* exported symbols from the actual guest,
+without executing the APK. Python unit tests for malformed and valid
+fixtures run as part of the catalog-validation CI workflow.
+
+Best Park 1.2.1 has seven DT_NEEDED dependencies and exports
+JNI_OnLoad, nativeInit, nativeRender, lifecycle, keyboard, and
+touch handlers. The native Cocos backend must resolve them at runtime.

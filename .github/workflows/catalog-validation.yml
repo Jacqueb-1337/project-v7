@@ -30,3 +30,7 @@ jobs:
           else
             python3 scripts/validate_catalog.py
           fi
+
+      - name: Test legacy Cocos ELF inventory
+        shell: bash
+        run: python3 -m unittest discover -s scripts/tests -p 'test_inspect_cocos_apk.py'
