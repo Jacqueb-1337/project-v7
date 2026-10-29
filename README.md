@@ -100,6 +100,14 @@ ARMv7 / armeabi-v7a apps are a primary compatibility target, but support is app-
 
 Yes. Cops N Robbers 3.0.2 is the first tested app and the main compatibility test case for Project V7.
 
+### Why does "Morphe Patches" say it needs a newer patch engine?
+
+Project V7 still supports optional third-party patch bundles from the upstream Morphe ecosystem. These are **separate** from Project V7's own compatibility catalog and its Cops N Robbers profile.
+
+A bundle's `Patcher-Version` requirement describes the **underlying patch engine**, not the version of the Project V7 Android app. For example, a source requiring engine 2.0.0 cannot be used when the installed Project V7 build includes engine 1.15.0. This does **not** prove that a newer Project V7 release is available.
+
+You can [check Project V7 releases](https://github.com/Jacqueb-1337/project-v7/releases) for a compatible engine or choose a different patch source. Installing Morphe Manager would **not** update Project V7. Project V7's own game compatibility modules live in the [catalog](catalog/README.md).
+
 ## Contributing
 
 See the [Project V7 contributor getting-started guide](CONTRIBUTING.md) for a step-by-step game profile, catalog rules, validation, and pull requests.
