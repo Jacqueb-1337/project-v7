@@ -36,6 +36,7 @@ import app.morphe.manager.domain.installer.RootInstaller
 import app.morphe.manager.domain.installer.UninstallCancelledException
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.domain.pv7.Pv7GuestBackend
 import app.morphe.manager.domain.pv7.Pv7CatalogOrigin
 import app.morphe.manager.domain.pv7.Pv7CatalogRepository
 import app.morphe.manager.domain.pv7.*
@@ -2623,6 +2624,10 @@ class HomeViewModel(
 
     fun confirmPv7Selection() {
         val state = pv7PendingRun ?: return
+        if (!Pv7GuestBackend.canBuild(state.target)) {
+            app.toast(Pv7GuestBackend.explanation(state.target))
+            return
+        }
         val missing = state.resolution.visibleModules
             .filter { it.selected }
             .flatMap { row ->

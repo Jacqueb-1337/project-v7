@@ -39,6 +39,16 @@ class Pv7WrapperAssembler {
     fun extractLegacyUnityGuest(inputApk: File, stagingRoot: File): Pv7GuestPayload {
         if (!inputApk.isFile) throw IOException("Input APK does not exist: " + inputApk)
 
+        val target = Pv7AppTarget(
+            packageId = "",
+            versionName = null,
+            abis = Pv7EngineDetector.detectAbis(inputApk),
+            engine = Pv7EngineDetector.detect(inputApk)
+        )
+        if (!Pv7GuestBackend.canBuild(target)) {
+            throw IOException("Unsupported PV7 guest format. " + Pv7GuestBackend.explanation(target))
+        }
+
         if (stagingRoot.exists()) stagingRoot.deleteRecursively()
         if (!stagingRoot.mkdirs() && !stagingRoot.isDirectory) {
             throw IOException("Could not create PV7 staging directory: " + stagingRoot)

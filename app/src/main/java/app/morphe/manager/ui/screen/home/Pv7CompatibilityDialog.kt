@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.morphe.manager.domain.pv7.Pv7AppTarget
+import app.morphe.manager.domain.pv7.Pv7GuestBackend
 import app.morphe.manager.domain.pv7.Pv7ModuleKind
 import app.morphe.manager.domain.pv7.Pv7ModuleBadge
 import app.morphe.manager.domain.pv7.Pv7PatchOperation
@@ -94,7 +95,8 @@ internal fun Pv7CompatibilityDialog(
             AppDialogButtonRow(
                 primaryText = "Continue",
                 onPrimaryClick = onProceed,
-                primaryEnabled = !missingOptions &&
+                primaryEnabled = Pv7GuestBackend.canBuild(target) &&
+                    !missingOptions &&
                     resolution.selectedModuleIds.isNotEmpty() &&
                     (catalogIssues + resolution.issues).isEmpty(),
                 secondaryText = "Cancel",
@@ -154,11 +156,14 @@ internal fun Pv7CompatibilityDialog(
                                     ?: "unknown ABI"),
                             style = MaterialTheme.typography.bodySmall
                         )
-                        if (target.engine?.id != "unity" || "armeabi-v7a" !in target.abis) {
+                        if (!Pv7GuestBackend.canBuild(target)) {
                             Text(
-                                "The current wrapper assembly expects a single legacy Unity " +
-                                    "ARMv7 APK with libunity.so and libmono.so. Other APKs can " +
-                                    "be inspected here but cannot yet be promised to build.",
+                                Pv7GuestBackend.explanation(target),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                "Continue is disabled until a compatible backend is implemented.",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

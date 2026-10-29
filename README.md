@@ -119,6 +119,14 @@ protected directories or make unsupported engines playable.
 
 See [guest storage and OBB mapping](docs/guest-storage.md).
 
+## Native compatibility backends
+
+PV7's catalog can accept game entries for many Android APKs, but its current
+runtime only builds legacy ARMv7 **Unity 4.6 Mono** wrappers. A Cocos2d-x game
+such as Regular Show: Best Park in the Universe needs a separate native
+compatibility backend, not the existing CNR Unity wrapper.
+See [engine compatibility and diagnostics](docs/compatibility-backends.md).
+
 ## Releases and updates
 
 Project V7 maintains separate [production and debug release channels](docs/releases.md).
