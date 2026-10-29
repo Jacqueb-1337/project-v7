@@ -100,6 +100,43 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           fingerprint: ${{ vars.GPG_FINGERPRINT }}
 
+      - name: Verify PV7 release signing key before building
+        if: steps.prerequisites.outputs.ready == 'true'
+        shell: bash
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          printf 'PV7 OpenPGP preflight' > "$RUNNER_TEMP/pv7-sign-test.txt"
+          # PV7's original Windows-created key expects one CR byte before LF.
+          normalized="${GPG_PASSPHRASE%        if: steps.prerequisites.outputs.ready == 'true'
+        uses: cycjimmy/semantic-release-action@v6
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+          KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+
+      - name: Attest APK provenance
+        if: steps.release.outputs.new_release_published == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: Project V7 Patcher ${{ steps.release.outputs.new_release_git_tag }}
+          subject-path: app/build/outputs/apk/release/project-v7-patcher-*.apk
+
+# Do not dispatch MorpheApp's website or send Morphe FCM notifications.
+# PV7 can add its own site/FCM integration after ownership and credentials are verified.
+\r'}"
+          printf '%s\r\n' "$normalized" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --local-user "$GPG_FINGERPRINT" --detach-sign \
+            --output "$RUNNER_TEMP/pv7-sign-test.sig" "$RUNNER_TEMP/pv7-sign-test.txt"
+          gpg --verify "$RUNNER_TEMP/pv7-sign-test.sig" "$RUNNER_TEMP/pv7-sign-test.txt"
+          echo "PV7 release OpenPGP signing key verified."
+
       - name: Publish signed PV7 release
         if: steps.prerequisites.outputs.ready == 'true'
         uses: cycjimmy/semantic-release-action@v6
