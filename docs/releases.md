@@ -8,8 +8,11 @@ settings from being accidentally reused.
 
 | Channel | APK example | Android application ID | Signing |
 | --- | --- | --- | --- |
-| Production | `project-v7-patcher-1.33.3.apk` | `app.morphe.manager` (legacy namespace retained for compatibility) | Private, PV7-controlled production signing key |
-| Historical debug previews | `project-v7-patcher-1.33.2-debug.apk` | `app.morphe.manager.debug` | Developer/debug key |
+| Production (v1.33.4+) | `project-v7-patcher-1.33.4.apk` | `me.jacqueb.projectv7` | Private, PV7-controlled production signing key |
+| Historical debug previews (before v1.33.4) | `project-v7-patcher-1.33.2-debug.apk` | `app.morphe.manager.debug` | Developer/debug key |
+| Future debug previews | `project-v7-patcher-<version>-debug.apk` | `me.jacqueb.projectv7.debug` | Developer/debug key |
+
+**Critical correction:** v1.33.3 mistakenly used `app.morphe.manager`, the **original Morphe Manager package ID**, and could appear as an update to Morphe in Android’s package installer. Do not install v1.33.3 as an update to Morphe. As of v1.33.4, PV7 is independent under `me.jacqueb.projectv7`. The unchanged Kotlin `app.morphe.manager` namespace refers to internal classes and is **not** the installed Android package ID.
 
 **These are different Android packages.** An official production APK does not update a
 previously installed `.debug` APK in place. Users can install production alongside
@@ -92,7 +95,7 @@ current in-app updater independently verifies OpenPGP signatures.
 
 ## Existing release tags
 
-Older `v1.33.x` artifacts were experimental `-debug.apk` downloads.
+Older pre-v1.33.3 artifacts were experimental `-debug.apk` downloads. The v1.33.3 production APK was published using Morphe’s `app.morphe.manager` package ID by mistake. It has been superseded by the unique PV7 production ID introduced in v1.33.4.
 These are preserved for provenance and testing, but they should not be presented as
 production updates. The older root `app-release.json` was inherited from Morphe
 and must not be used as a production update feed until PV7 has published an actual
