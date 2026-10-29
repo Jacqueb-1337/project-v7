@@ -30,18 +30,11 @@ mv "${APK_SRC}" "${APK_DST}"
 echo "Renamed APK to ${APK_DST}"
 
 # 4. GPG-sign the APK
-# The initial PV7 OpenPGP key was generated via a Windows CRLF input stream, so
-# its password includes one literal carriage-return byte. Normalize a trailing
-# CR if Actions preserved it and add exactly one CR before the line terminator.
-# Scope this compatibility to PV7's current signing identity; future keys should
-# be generated from an LF-only stream, not by piping passwords in PowerShell.
-PV7_GPG_INPUT="${GPG_PASSPHRASE%
-gpg --verify "${APK_DST}.asc" "${APK_DST}"
-echo "Signed ${APK_DST}"
-
-echo "Release v${VERSION} prepared successfully."
-\r'}"
-printf '%s\r\n' "${PV7_GPG_INPUT:?}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "${GPG_FINGERPRINT:?}" --armor --detach-sign "${APK_DST}"
+# The existing PV7 GPG key was created by a Windows CRLF stream. Its passphrase
+# contains one literal CR byte. Keep the key stable and normalize the input.
+PV7_CR=$(printf '\r')
+PV7_GPG_INPUT="${GPG_PASSPHRASE%$PV7_CR}"
+printf '%s\r\n' "$PV7_GPG_INPUT" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "${GPG_FINGERPRINT:?}" --armor --detach-sign "${APK_DST}"
 gpg --verify "${APK_DST}.asc" "${APK_DST}"
 echo "Signed ${APK_DST}"
 
