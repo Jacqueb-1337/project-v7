@@ -11,7 +11,6 @@ plugins {
     alias(libs.plugins.devtools)
     alias(libs.plugins.about.libraries)
     alias(libs.plugins.about.libraries.android)
-    alias(libs.plugins.google.services)
     signing
 }
 
@@ -88,9 +87,6 @@ dependencies {
     implementation(libs.ktor.content.negotiation)
     implementation(libs.ktor.serialization)
 
-    // Firebase Cloud Messaging
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.messaging)
     implementation(libs.play.services.base)
 
     // Fading Edges
@@ -151,7 +147,9 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.morphe.manager"
+        // Project V7 must never collide with the original Morphe Manager package.
+        // Keep this identity stable across all future PV7 production releases.
+        applicationId = "me.jacqueb.projectv7"
         minSdk = 26
 
         versionName = version.toString()
