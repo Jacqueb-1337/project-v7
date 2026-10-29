@@ -342,10 +342,9 @@ class MorpheAPI(
     private fun normalizeVersion(version: String): String =
         if (version.startsWith("v")) version else "v$version"
 
-    /** Returns true if [asset] looks like an Android APK by name or content-type. */
+    /** Debug previews and production releases have different package IDs/signing keys. */
     private fun isManagerAsset(asset: GitHubAsset): Boolean =
-        asset.name.startsWith("project-v7-patcher-", ignoreCase = true) &&
-            asset.name.endsWith(".apk", ignoreCase = true)
+        isProjectV7ManagerApkFile(asset.name, debugChannel = BuildConfig.DEBUG)
 
     /** True when the currently installed manager is a dev/pre-release build. */
     val isDevBuild: Boolean
