@@ -102,6 +102,8 @@ Yes. Cops N Robbers 3.0.2 is the first tested app and the main compatibility tes
 
 ## Contributing
 
+See the [Project V7 contributor getting-started guide](CONTRIBUTING.md) for a step-by-step game profile, catalog rules, validation, and pull requests.
+
 Pull requests for new app profiles, compatibility fixes, and improvements to the patcher are welcome.
 
 If you are adding another app, keep app-specific behavior in that app's module when possible. Reusable fixes should go into a general module so another app can use them later.
