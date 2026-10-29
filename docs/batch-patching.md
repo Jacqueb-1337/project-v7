@@ -145,8 +145,8 @@ rather than something that half-happens overnight.
 Automation tools can ask Morphe to open a queue:
 
 ```
-adb shell am start -n app.morphe.manager/app.morphe.manager.MainActivity \
-  -a app.morphe.manager.action.BATCH_PATCH \
+adb shell am start -n me.jacqueb.projectv7/app.morphe.manager.MainActivity \
+  -a me.jacqueb.projectv7.action.BATCH_PATCH \
   --esa packages com.google.android.youtube,com.reddit.frontpage
 ```
 
