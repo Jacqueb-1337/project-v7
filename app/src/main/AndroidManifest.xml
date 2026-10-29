@@ -121,17 +121,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- Add-source deep link. Website acts as the gateway for repo validation -->
-            <intent-filter android:autoVerify="false">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="morphe.software"
-                    android:pathPrefix="/add-source" />
-            </intent-filter>
-        </activity>
+            </activity>
 
         <!-- Default launcher icon -->
         <activity-alias
@@ -245,20 +235,6 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
-
-        <!-- Firebase Cloud Messaging - receives push notifications bypassing Doze mode -->
-        <service
-            android:name="app.morphe.manager.service.MorpheFcmService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- Disable Firebase Analytics -->
-        <meta-data
-            android:name="firebase_analytics_collection_enabled"
-            android:value="false" />
 
         <!-- Root service for privileged file system operations via libsu -->
         <service
