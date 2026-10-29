@@ -30,8 +30,8 @@
     <string name="home_blocked_source_subtitle">Tap to review and remove</string>
     <string name="home_metadata_errors_title">Some patch sources are unavailable</string>
     <string name="home_metadata_errors_subtitle">Tap to review sources</string>
-    <string name="home_outdated_manager_title">Project V7 Patcher is out of date</string>
-    <string name="home_outdated_manager_subtitle">Some patch sources need a newer version</string>
+    <string name="home_outdated_manager_title">Patch source needs a newer engine</string>
+    <string name="home_outdated_manager_subtitle">Some sources are incompatible with the bundled patch engine</string>
     <string name="home_held_back_title">A patch source crashed Project V7 Patcher</string>
     <string name="home_held_back_subtitle">It was skipped so the app could start. Tap to review</string>
     <string name="home_metered_skipped_title">Updates paused on mobile data</string>
@@ -162,8 +162,8 @@
     <string name="sources_management_metadata_unavailable">Metadata N/A</string>
     <string name="sources_management_metadata_unavailable_hint">The remote metadata file is unavailable. Patching with the installed bundle still works, but auto-update is disabled for this source</string>
     <string name="sources_management_metadata_unavailable_hint_missing">The patch bundle could not be downloaded. The source URL may be incorrect or the file does not exist</string>
-    <string name="sources_management_outdated_manager_badge">Update Project V7 Patcher</string>
-    <string name="sources_management_outdated_manager_hint">This source is built for patcher %1$s, but Project V7 Patcher %2$s includes patcher %3$s. Update Project V7 Patcher to use it</string>
+    <string name="sources_management_outdated_manager_badge">Newer patch engine needed</string>
+    <string name="sources_management_outdated_manager_hint">This source requires patch engine %1$s, but Project V7 %2$s includes engine %3$s. It is incompatible with this build. Check Project V7 releases or use another source</string>
     <string name="sources_management_held_back_badge">Crashed</string>
     <string name="sources_management_held_back_hint">This source crashed Project V7 Patcher while loading, so it is being skipped. Update or re-import it to try again</string>
     <string name="sources_management_source_enabled">Source enabled</string>
@@ -578,9 +578,9 @@ Uninstalling will permanently erase all app data"</string>
     <string name="patcher_patches_excluded_for_installer">Not available for this install method and excluded: %s</string>
     <string name="patcher_back_to_game_hint">Tap %1$s to go back to your game</string>
     <string name="patcher_storage_permission_dialog_title">Cannot access storage path</string>
-    <string name="patcher_incompatible_patcher_title">Update required</string>
-    <string name="patcher_incompatible_patcher_description">The bundle &lt;b&gt;%1$s&lt;/b&gt; requires patcher version &lt;b&gt;%2$s&lt;/b&gt; or newer. Please update Project V7 Patcher to patch this app</string>
-    <string name="patcher_incompatible_patcher_update_button">Download and update Project V7 Patcher</string>
+    <string name="patcher_incompatible_patcher_title">Patch source needs a newer engine</string>
+    <string name="patcher_incompatible_patcher_description">The bundle &lt;b&gt;%1$s&lt;/b&gt; requires patch engine &lt;b&gt;%2$s&lt;/b&gt;, but this Project V7 build includes &lt;b&gt;%3$s&lt;/b&gt;. This source is incompatible with the current engine. You can check Project V7 releases or choose another source; a compatible update might not yet exist</string>
+    <string name="patcher_incompatible_patcher_update_button">View Project V7 releases</string>
     <string name="patcher_storage_permission_description_api30">One or more patch options point to paths Project V7 Patcher cannot read. Grant storage access and tap the button then patching will start automatically</string>
     <string name="patcher_storage_permission_description_legacy">One or more patch options point to paths that cannot be accessed. Update the paths in patch options and try again</string>
     <string name="patcher_storage_permission_grant">Grant storage permission</string>
@@ -774,10 +774,10 @@ Uninstalling will permanently erase all app data"</string>
     <string name="settings_appearance_language_and_display">Language &amp; display</string>
     <string name="settings_appearance_app_language">App language</string>
     <string name="settings_appearance_app_language_current">Current language</string>
-    <string name="settings_appearance_translations_info_title">Translations for some languages may be missing or incomplete</string>
-    <string name="settings_appearance_translations_info_text">"To translate new languages or improve the existing translations, visit
+    <string name="settings_appearance_translations_info_title">Help improve Project V7 translations</string>
+    <string name="settings_appearance_translations_info_text">"To suggest or improve a translation, open an issue in the Project V7 repository:
 %s"</string>
-    <string name="settings_appearance_translations_info_url" translatable="false">morphe.software/translate</string>
+    <string name="settings_appearance_translations_info_url" translatable="false">Project V7 GitHub issues</string>
 
     <!-- Settings - Appearance Tab - Interface Scale -->
     <string name="settings_appearance_ui_scale">Interface scale</string>
@@ -1175,7 +1175,7 @@ Details: %2$s"</string>
     <string name="settings_system_patched_apks_delete_title">Delete patched APK?</string>
     <string name="settings_system_patched_apks_deleted">Patched APK deleted successfully</string>
     <string name="settings_system_patched_apks_delete_all_title">Delete all patched APKs?</string>
-    <string name="settings_system_patched_apks_export_zip_name" translatable="false">morphe-patched-apks.zip</string>
+    <string name="settings_system_patched_apks_export_zip_name" translatable="false">project-v7-patched-apks.zip</string>
 
     <!-- Settings - System Tab - Storage Management - Original APKs Management -->
     <string name="settings_system_original_apks_title">Original APKs</string>
@@ -1185,7 +1185,7 @@ Details: %2$s"</string>
     <string name="settings_system_original_apks_delete_title">Delete original APK?</string>
     <string name="settings_system_original_apks_delete_notice">You won\'t be able to repatch without providing a new APK</string>
     <string name="settings_system_original_apks_delete_all_title">Delete all original APKs?</string>
-    <string name="settings_system_original_apks_export_zip_name" translatable="false">morphe-original-apks.zip</string>
+    <string name="settings_system_original_apks_export_zip_name" translatable="false">project-v7-original-apks.zip</string>
 
     <!-- Settings - System Tab - Storage Management - Patch Selection Management -->
     <string name="settings_system_patch_selections_title">Patch selections</string>
