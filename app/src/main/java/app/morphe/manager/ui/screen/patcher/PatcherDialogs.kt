@@ -43,7 +43,7 @@ import app.morphe.manager.BuildConfig
 import app.morphe.manager.R
 import app.morphe.manager.ui.model.RenameWarning
 import app.morphe.manager.ui.screen.shared.*
-import app.morphe.manager.util.MANAGER_REPO_URL
+import app.morphe.manager.util.MANAGER_RELEASES_URL
 import app.morphe.manager.util.PathValidationResult
 import app.morphe.manager.util.deviceStats
 import app.morphe.manager.util.htmlAnnotatedString
@@ -80,7 +80,7 @@ fun IncompatiblePatcherVersionDialog(
             AppDialogButtonRow(
                 primaryText = stringResource(R.string.patcher_incompatible_patcher_update_button),
                 onPrimaryClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, "$MANAGER_REPO_URL/releases".toUri())
+                    val intent = Intent(Intent.ACTION_VIEW, MANAGER_RELEASES_URL.toUri())
                     context.startActivity(intent)
                 },
                 primaryIcon = Icons.Outlined.SystemUpdate,
