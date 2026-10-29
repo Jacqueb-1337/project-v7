@@ -25,7 +25,7 @@ object Pv7EngineDetector {
                         val parts = entry.name.split('/')
                         parts.getOrNull(1).takeIf {
                             parts.firstOrNull() == "lib" &&
-                                it in setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                                it in setOf("armeabi", "armeabi-v7a", "arm64-v8a", "x86", "x86_64")
                         }
                     }
                     .toSet()
@@ -77,6 +77,26 @@ object Pv7EngineDetector {
                     id = "unity",
                     version = null,
                     evidence = entry.name
+                )
+            }
+
+            // Many older Cocos2d-x games bundle one ARM32 libgame.so (not
+            // Unity's libmain.so/libmono.so) and org/cocos2dx/lib resources.
+            // Never send them through the Unity wrapper backend.
+            val cocosEvidence = entries.firstOrNull { entry ->
+                !entry.isDirectory &&
+                    entry.name.startsWith("org/cocos2dx/lib/")
+            }
+            val cocosNative = entries.firstOrNull { entry ->
+                !entry.isDirectory &&
+                    Regex("^lib/(armeabi|armeabi-v7a)/lib(game|cocos2dcpp)\\.so$")
+                        .matches(entry.name)
+            }
+            if (cocosEvidence != null && cocosNative != null) {
+                return Pv7EngineFingerprint(
+                    id = "cocos2dx",
+                    version = null,
+                    evidence = cocosNative.name + " + " + cocosEvidence.name
                 )
             }
         }

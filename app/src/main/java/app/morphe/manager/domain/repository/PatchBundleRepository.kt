@@ -449,15 +449,12 @@ class PatchBundleRepository(
     }
 
     private suspend fun loadFromDb(): List<PatchBundleEntity> {
-        val all = dao.all()
-        if (all.isEmpty()) {
-            // Always restore default bundle if database is empty
-            val default = createDefaultEntity()
-            dao.upsert(default)
-            return listOf(default)
-        }
-
-        return all
+        // PV7 uses its own compatibility catalog, NOT the preinstalled Morphe
+        // patch bundle (which needs a newer unrelated Morphe patch engine).
+        // Do not recreate it on fresh installs. Exclude legacy uid=0 records
+        // from existing installs without deleting their stored data.
+        // User-added third-party sources are still supported.
+        return dao.all().filterNot { it.uid == DEFAULT_SOURCE_UID }
     }
 
     private suspend fun loadMetadata(sources: Map<Int, PatchBundleSource>): Map<Int, PatchBundleInfo.Global> {

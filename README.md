@@ -110,6 +110,14 @@ A bundle's `Patcher-Version` requirement describes the **underlying patch engine
 
 You can [check Project V7 releases](https://github.com/Jacqueb-1337/project-v7/releases) for a compatible engine or choose a different patch source. Installing Morphe Manager would **not** update Project V7. Project V7's own game compatibility modules live in the [catalog](catalog/README.md).
 
+## Native compatibility backends
+
+PV7's catalog can accept game entries for many Android APKs, but its current
+runtime only builds legacy ARMv7 **Unity 4.6 Mono** wrappers. A Cocos2d-x game
+such as Regular Show: Best Park in the Universe needs a separate native
+compatibility backend, not the existing CNR Unity wrapper.
+See [engine compatibility and diagnostics](docs/compatibility-backends.md).
+
 ## Releases and updates
 
 Project V7 maintains separate [production and debug release channels](docs/releases.md).
