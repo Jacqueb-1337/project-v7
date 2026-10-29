@@ -608,11 +608,10 @@ class PatcherViewModel(
 
         patchSourcesForLog = collectSelectedBundleMetadata()
 
-        // Check that all selected bundles are compatible with the patcher bundled in this
-        // version of the manager. If a bundle requires a newer patcher, block and show a dialog
-        // asking the user to update the manager app
+        // Only bundles with actually selected patches can require a newer patch engine.
+        // An empty selection can be retained for another source, but must not block a PV7 run.
         val globalBundlesForCheck = patchBundleRepository.bundleInfoFlow.first()
-        appliedSelection.keys.forEach { uid ->
+        appliedSelection.filterValues { it.isNotEmpty() }.keys.forEach { uid ->
             val bundle = globalBundlesForCheck[uid] ?: return@forEach
             val required = bundle.patcherVersion ?: return@forEach
             if (isPatcherOutdated(required, BuildConfig.PATCHER_VERSION)) {
