@@ -130,6 +130,14 @@ node_modules/
 
 local.properties
 
+# Never commit the Android or GPG signing identity.
+**/keystore.jks
+**/*.p12
+**/*.pfx
+**/*.asc
+**/*signing*private*
+
+
 .cxx
 AGENT.md
 .gitignore
