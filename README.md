@@ -108,6 +108,13 @@ A bundle's `Patcher-Version` requirement describes the **underlying patch engine
 
 You can [check Project V7 releases](https://github.com/Jacqueb-1337/project-v7/releases) for a compatible engine or choose a different patch source. Installing Morphe Manager would **not** update Project V7. Project V7's own game compatibility modules live in the [catalog](catalog/README.md).
 
+## Releases and updates
+
+Project V7 maintains separate [production and debug release channels](docs/releases.md).
+Production APKs require a private PV7 signing identity; older debug builds cannot be
+upgraded in place to a differently signed production app. The [release setup guide](docs/releases.md)
+explains the signing secrets, safe publishing, and how to verify the APK.
+
 ## Contributing
 
 See the [Project V7 contributor getting-started guide](CONTRIBUTING.md) for a step-by-step game profile, catalog rules, validation, and pull requests.
