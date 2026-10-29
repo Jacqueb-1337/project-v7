@@ -1,117 +1,121 @@
-name: Release
+name: Release Project V7
 
 on:
   workflow_dispatch:
-    inputs:
-      send_fcm:
-        description: 'Send FCM push notification'
-        type: boolean
-        default: true
   push:
     branches:
       - main
 
+permissions:
+  contents: write
+  packages: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: pv7-production-release
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Release
-    permissions:
-      contents: write
-      packages: write
-      id-token: write
-      attestations: write
-      actions: write
+    name: Sign and publish PV7
     runs-on: ubuntu-latest
-
     steps:
+      - name: Check production signing configuration
+        id: prerequisites
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+          KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in KEYSTORE_B64 KEYSTORE_PASSWORD KEYSTORE_ENTRY_ALIAS KEYSTORE_ENTRY_PASSWORD GPG_PRIVATE_KEY GPG_PASSPHRASE GPG_FINGERPRINT; do
+            if [[ -z "${!key}" ]]; then missing+=("$key"); fi
+          done
+          if (( ${#missing[@]} )); then
+            echo "::notice::PV7 production release not configured. Missing: ${missing[*]}. No APK or update metadata will be published."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+              echo "::error::A manually requested production release requires all signing credentials."
+              exit 1
+            fi
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
-        uses: actions/checkout@v7
+        if: steps.prerequisites.outputs.ready == 'true'
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Java
-        uses: actions/setup-java@v6
+        if: steps.prerequisites.outputs.ready == 'true'
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
 
+      - name: Restore and validate PV7 Android signing keystore
+        if: steps.prerequisites.outputs.ready == 'true'
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > app/keystore.jks
+          if ! keytool -list -keystore app/keystore.jks -storepass:env KEYSTORE_PASSWORD -alias "$KEYSTORE_ENTRY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::PV7 Android signing keystore is invalid, unreadable, or missing its configured alias."
+            exit 1
+          fi
+
       - name: Cache Gradle
+        if: steps.prerequisites.outputs.ready == 'true'
         uses: burrunan/gradle-cache-action@v3
 
-      - name: Setup keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > app/keystore.jks
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - name: Setup Node
+        if: steps.prerequisites.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
-          node-version: "lts/*"
+          node-version: lts/*
           cache: npm
 
-      - name: Install dependencies
+      - name: Install release dependencies
+        if: steps.prerequisites.outputs.ready == 'true'
         run: npm ci
 
-      - name: Import GPG key
+      - name: Import PV7 GPG signing key
+        if: steps.prerequisites.outputs.ready == 'true'
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           fingerprint: ${{ vars.GPG_FINGERPRINT }}
 
-      - name: Release
+      - name: Publish signed PV7 release
+        if: steps.prerequisites.outputs.ready == 'true'
         uses: cycjimmy/semantic-release-action@v6
         id: release
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
           KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
 
-      - name: Attest
+      - name: Attest APK provenance
         if: steps.release.outputs.new_release_published == 'true'
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@v2
         with:
-          subject-name: 'Morphe Manager ${{ steps.release.outputs.new_release_git_tag }}'
-          subject-path: app/build/outputs/apk/release/morphe-manager*.apk
+          subject-name: Project V7 Patcher ${{ steps.release.outputs.new_release_git_tag }}
+          subject-path: app/build/outputs/apk/release/project-v7-patcher-*.apk
 
-      - name: Generate website deploy token
-        if: steps.release.outputs.new_release_published == 'true'
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.MORPHE_AAMATT_APP_ID }}
-          private-key: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
-          owner: MorpheApp
-
-      - name: Trigger website deploy
-        if: steps.release.outputs.new_release_published == 'true'
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            await github.rest.repos.createDispatchEvent({
-              owner: 'MorpheApp',
-              repo: 'morphe-website',
-              event_type: 'trigger-deploy'
-            })
-
-      - name: Wait before sending FCM
-        if: steps.release.outputs.new_release_published == 'true' && (github.event_name == 'push' || inputs.send_fcm == true)
-        run: sleep 300
-
-      - name: Setup Python for FCM
-        if: steps.release.outputs.new_release_published == 'true' && (github.event_name == 'push' || inputs.send_fcm == true)
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-
-      - name: Send FCM push notification
-        if: steps.release.outputs.new_release_published == 'true' && (github.event_name == 'push' || inputs.send_fcm == true)
-        env:
-          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
-          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-          NEW_TAG: ${{ steps.release.outputs.new_release_git_tag }}
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          pip install cryptography
-          python3 .github/scripts/send_fcm.py
+# Do not dispatch MorpheApp's website or send Morphe FCM notifications.
+# PV7 can add its own site/FCM integration after ownership and credentials are verified.
