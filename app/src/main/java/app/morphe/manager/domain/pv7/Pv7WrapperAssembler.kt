@@ -163,7 +163,11 @@ class Pv7WrapperAssembler {
         selectedModules: List<Pv7ModuleManifest>,
         packageName: String
     ) {
-        val providers = selectedModules.flatMap { module ->
+        // Always expose a SAF root for user-managed guest saves, cache, and OBB.
+        // Its class is bundled in the generic host template as a secondary DEX.
+        // Game-specific providers (e.g. CNRMods) continue to work alongside it.
+        val genericProvider = "app.projectv7.wrapper.Pv7GameStorageDocumentsProvider" to ".gamefiles"
+        val providers = listOf(genericProvider) + selectedModules.flatMap { module ->
             module.operations.mapNotNull { operation ->
                 if (operation.type != "wrapper.addDocumentsProvider") return@mapNotNull null
                 val value = operation.value as? JsonObject
