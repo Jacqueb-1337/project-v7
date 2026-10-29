@@ -1,0 +1,32 @@
+name: Validate PV7 catalog
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-catalog:
+    name: Validate catalog files and references
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            git show '${{ github.event.pull_request.base.sha }}:catalog/index.json' > "$RUNNER_TEMP/pv7-base-index.json"
+            python3 scripts/validate_catalog.py --baseline-index "$RUNNER_TEMP/pv7-base-index.json"
+          else
+            python3 scripts/validate_catalog.py
+          fi
