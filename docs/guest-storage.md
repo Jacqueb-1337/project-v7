@@ -1,41 +1,74 @@
 # Generic PV7 guest storage
 
-Each PV7-generated wrapper gets an additional, **user-controlled Storage Access Framework (SAF) provider** named **PV7 Game Storage**. It uses the provider authority `<installed-wrapper-package>.gamefiles`, so multiple games remain independent.
+Every generated Project V7 wrapper exposes a **PV7 Game Storage** entry in
+Android's Files app. All four categories belong to the **same app-private
+shared guest directory**, and all are equally editable through the system
+Storage Access Framework (SAF) picker:
 
-In Android's **Files** app, open **Browse** and select **PV7 Game Storage**. Four virtual directories appear:
+```text
+<app-private filesDir>/
+``` GuestSharedStorage/
+    ``` obb/
+    ``` data/
+    ``` cache/
+    ``` files/
+```
 
-| Files folder | Actual backing directory | Purpose |
-| --- | --- | --- |
-| `obb/` | `getObbDir()` → `Android/obb/<installed-wrapper-package>/` | Actual expansion files for the wrapper's package |
-| `data/` | `getFilesDir()/GuestSharedStorage/data/` | User-managed guest saved data |
-| `cache/` | `getFilesDir()/GuestSharedStorage/cache/` | User-managed guest cache files (persistent until deleted) |
-| `files/` | `getFilesDir()/GuestSharedStorage/files/` | Additional user-managed game files |
+| Files folder | Backing directory |
+| --- | --- |
+| `obb/` | `getFilesDir()/GuestSharedStorage/obb/` |
+| `data/` | `getFilesDir()/GuestSharedStorage/data/` |
+| `cache/` | `getFilesDir()/GuestSharedStorage/cache/` |
+| `files/` | `getFilesDir()/GuestSharedStorage/files/` |
 
-On Android 11+, ordinary file managers cannot freely browse another app's `Android/obb` or `Android/data` directories. The SAF root is the sanctioned way to grant the user access to **these wrapper-owned areas**, without requesting all-files access. It does not expose the wrapper's databases, credentials, preferences, or unrelated internal files.
+Users can import, read, write, create, rename and delete files in all four
+areas from **PV7 Game Storage** in Android's Files app. The provider gives
+the selected Files client scoped access to these purpose-built directories
+without root or unrestricted storage permissions. It does not expose the
+wrapper's settings, databases, keys, or unrelated private data.
 
-## OBB filenames and identity
+Each game has its own tree: the provider authority is the generated wrapper's
+package name followed by `.gamefiles`.
 
-Traditional Google Play expansion files use names like:
+## Private OBB: NOT Android/obb
 
-- `main.<versionCode>.<wrapperPackage>.obb`
-- `patch.<versionCode>.<wrapperPackage>.obb`
+The `obb/` folder is **not** `Android/obb/<package>` and is **not**
+backed by Android's standard `Context.getObbDir()`. It lives beside
+`data/`, `cache/` and `files/` inside `GuestSharedStorage`.
+This is a deliberate PV7 layout choice.
 
-The app-visible package after wrapping is the *wrapper's* installed package. For Best Park v1.2.1 the original APK's version code is **16**, but the original game uses an Android expansion-file helper that assembles its OBB name from `getPackageName()`. A future Cocos2d-x backend must ensure the guest's expansion-file APIs consistently resolve to **the wrapper's actual package / OBB directory**, including when older native code uses legacy paths. The presence of an `obb` folder alone does **not** solve the Cocos2d-x emulation or expansion-file download requirements.
+Android games can request OBBs using `getObbDir()`,
+`getPackageName()`, legacy external storage paths, or direct native
+filesystem calls. A PV7 compatibility backend must redirect the game's
+OBB lookups into `GuestSharedStorage/obb/`. Without that redirection, the
+game can still look in the conventional external OBB directory.
 
-PV7 deliberately never reaches into another application's OBB or data directory. Obtain a lawful copy of the game's expansion file and use Android's system picker to import it through **PV7 Game Storage → obb**. It is stored directly in the wrapper's actual `getObbDir()`.
+**The SAF storage provider does not implement the native/runtime path
+redirection.** In particular, the separate Cocos2d-x backend for
+Regular Show: Best Park is still unfinished. Adding an OBB file here by
+itself does not make the game launch or find its expansion data.
 
-## Engine integration
+Files are never silently copied from another installed application's
+protected data or OBB directory. Obtain a lawful copy of the expansion file
+and import it into the private OBB folder through the system picker. The
+runtime backend must also account for the original game's expected OBB
+filename and version code.
 
-The storage provider itself is **engine-independent** and is included in every generated wrapper, including CNR. Existing CNRMods SAF support continues separately as `<package>.documents`.
+## Safety and lifecycle
 
-To consume the private guest `data/`, `cache/`, or `files/` trees, an engine backend must route its guest Java/JNI or native filesystem accesses into those paths. An engine that queries Android's standard `getObbDir()` should resolve to the host package's `obb/` location; hard-coded legacy absolute paths need a backend-specific rewrite (not arbitrary access to the original application's directory).
+- The DocumentsProvider is limited to `GuestSharedStorage` and uses
+  canonical path checks, including symlink-safe recursive deletion.
+- The four category roots cannot be deleted or renamed in the Files UI.
+- Existing CNRMods DocumentsProvider support remains separate.
+- This layout is replacing the original unmerged PR #15 design that used
+  `getObbDir()`. No migration from conventional Android/obb is included.
+- Uninstalling a game wrapper normally deletes its app-private data,
+  including these folders. Back up saves and expansion files before uninstalling.
 
-This is a storage foundation, **not** a declaration that every APK is supported or that a Cocos2d-x game is playable.
+## Developer setup
 
-## Maintainer build
-
-The provider source lives at `host/src/app/projectv7/wrapper/Pv7GameStorageDocumentsProvider.java`. `scripts/embed_storage_provider.py` compiles it using the Android SDK and adds it as `classes2.dex` in the versioned host template. The manager injects the Android DocumentsProvider declaration for every generated wrapper, using the actual wrapper package as its authority.
-
-The provider uses canonical path checks and refuses to delete/rename virtual roots or escape its dedicated folders (including through symlink traversal). Changes inside the Files UI require user-selected SAF permissions.
-
-**Uninstalling a wrapper deletes its app-private data and typically its external app-specific OBB files. Keep backups of saves and legally obtained expansion files.**
+The provider implementation is
+`host/src/app/projectv7/wrapper/Pv7GameStorageDocumentsProvider.java`.
+`scripts/embed_storage_provider.py` compiles it to secondary DEX in
+PV7's host-template APK. The manager registers the provider authority
+based on each generated wrapper's actual application ID.

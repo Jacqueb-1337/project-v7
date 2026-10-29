@@ -113,8 +113,8 @@ You can [check Project V7 releases](https://github.com/Jacqueb-1337/project-v7/r
 ## Guest storage and OBB expansion files
 
 Every PV7-generated wrapper exposes **PV7 Game Storage** in Android's Files
-picker, with an actual wrapper-owned OBB folder and dedicated private
-guest data, cache and files folders. This does not grant access to other apps'
+picker, with **obb**, **data**, **cache** and **files** all stored under
+one app-private `GuestSharedStorage` directory. This does not grant access to other apps'
 protected directories or make unsupported engines playable.
 
 See [guest storage and OBB mapping](docs/guest-storage.md).

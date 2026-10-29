@@ -20,9 +20,9 @@ import java.util.Map;
 /**
  * SAF root for explicitly user-manageable guest storage.
  *
- * "obb" is the REAL OBB directory of this installed wrapper package
- * (Context.getObbDir(), typically /storage/emulated/0/Android/obb/<wrapper>).
- * data/cache/files are segregated trees inside private app files storage.
+ * obb/data/cache/files are segregated trees inside the SAME private,
+ * app-owned GuestSharedStorage directory. The Files app accesses them only
+ * through this DocumentsProvider, not through Android/obb or Android/data.
  *
  * Never expose the wrapper's top-level filesDir, cacheDir, databases, or
  * preferences. A user can edit only these purpose-built guest directories.
@@ -56,13 +56,10 @@ public final class Pv7GameStorageDocumentsProvider extends DocumentsProvider {
 
     private File directoryFor(String kind) throws FileNotFoundException {
         if (!Arrays.asList(FOLDERS).contains(kind)) throw new FileNotFoundException("Invalid storage area");
-        final File target;
-        if ("obb".equals(kind)) {
-            target = getContext().getObbDir();
-        } else {
-            target = new File(getContext().getFilesDir(), "GuestSharedStorage/" + kind);
-        }
-        if (target == null) throw new FileNotFoundException("External OBB storage unavailable");
+        final File target = new File(
+            getContext().getFilesDir(),
+            "GuestSharedStorage/" + kind
+        );
         if (!target.exists() && !target.mkdirs()) {
             throw new FileNotFoundException("Could not prepare " + kind + " storage");
         }

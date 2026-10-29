@@ -19,6 +19,14 @@ class Pv7HostStorageProviderTest {
                 "Missing compiled SAF provider; rerun embed_storage_provider.py",
                 text.contains("Pv7GameStorageDocumentsProvider")
             )
+            assertTrue(
+                "All four storage areas must use app-private GuestSharedStorage",
+                text.contains("GuestSharedStorage")
+            )
+            assertTrue(
+                "Private OBB must not use Context.getObbDir()",
+                !text.contains("getObbDir")
+            )
         }
     }
 }
