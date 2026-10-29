@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
 import androidx.lifecycle.ViewModel
 import app.morphe.manager.util.MANAGER_REPO_URL
+import app.morphe.manager.util.MANAGER_RELEASES_URL
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.brands.Github
@@ -25,7 +26,7 @@ class AboutViewModel : ViewModel() {
     companion object {
         val socials: List<SocialLink> = listOf(
             SocialLink(name = "GitHub", url = MANAGER_REPO_URL, preferred = true),
-            SocialLink(name = "Releases", url = "$MANAGER_REPO_URL/releases"),
+            SocialLink(name = "Releases", url = MANAGER_RELEASES_URL),
             SocialLink(name = "Report a bug", url = "$MANAGER_REPO_URL/issues"),
             SocialLink(name = "Contribute", url = "$MANAGER_REPO_URL/blob/main/CONTRIBUTING.md"),
             // Keep the inherited project's attribution accessible via PV7's own credits.
