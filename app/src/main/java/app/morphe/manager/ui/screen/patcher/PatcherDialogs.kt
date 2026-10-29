@@ -43,7 +43,7 @@ import app.morphe.manager.BuildConfig
 import app.morphe.manager.R
 import app.morphe.manager.ui.model.RenameWarning
 import app.morphe.manager.ui.screen.shared.*
-import app.morphe.manager.util.MORPHE_WEBSITE_URL
+import app.morphe.manager.util.MANAGER_REPO_URL
 import app.morphe.manager.util.PathValidationResult
 import app.morphe.manager.util.deviceStats
 import app.morphe.manager.util.htmlAnnotatedString
@@ -56,8 +56,8 @@ import app.morphe.manager.util.requestIgnoreBatteryOptimizations
 private const val ErrorInfoLabelMaxFraction = 0.45f
 
 /**
- * Shown when a patch bundle requires a newer version of morphe-patcher than the one
- * bundled in this version of the manager. Directs the user to the website to update.
+ * Shown when a patch bundle requires a newer patch engine than the one bundled with
+ * Project V7. A newer PV7 release may help, but is not guaranteed to exist.
  */
 @Composable
 fun IncompatiblePatcherVersionDialog(
@@ -73,13 +73,14 @@ fun IncompatiblePatcherVersionDialog(
         description = htmlAnnotatedString(stringResource(
             R.string.patcher_incompatible_patcher_description,
             bundleName,
-            requiredVersion
+            requiredVersion,
+            BuildConfig.PATCHER_VERSION
         )),
         footer = {
             AppDialogButtonRow(
                 primaryText = stringResource(R.string.patcher_incompatible_patcher_update_button),
                 onPrimaryClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, MORPHE_WEBSITE_URL.toUri())
+                    val intent = Intent(Intent.ACTION_VIEW, "$MANAGER_REPO_URL/releases".toUri())
                     context.startActivity(intent)
                 },
                 primaryIcon = Icons.Outlined.SystemUpdate,
