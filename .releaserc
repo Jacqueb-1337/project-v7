@@ -1,11 +1,5 @@
 {
-  "branches": [
-    "main",
-    {
-      "name": "dev",
-      "prerelease": true
-    }
-  ],
+  "branches": ["main"],
   "plugins": [
     [
       "@semantic-release/commit-analyzer",
@@ -20,8 +14,8 @@
       "@MorpheApp/changelog", {
         "releaseJson": {
           "path": "app-release.json",
-          "downloadUrlTemplate": "https://github.com/${owner}/${repo}/releases/download/v${version}/morphe-manager-${version}.apk",
-          "signatureUrlTemplate": "https://github.com/${owner}/${repo}/releases/download/v${version}/morphe-manager-${version}.apk.asc"
+          "downloadUrlTemplate": "https://github.com/${owner}/${repo}/releases/download/v${version}/project-v7-patcher-${version}.apk",
+          "signatureUrlTemplate": "https://github.com/${owner}/${repo}/releases/download/v${version}/project-v7-patcher-${version}.apk.asc"
         }
       }
     ],
@@ -52,13 +46,6 @@
           }
         ],
         "successComment": false
-      }
-    ],
-    [
-      "@cleyrop-org/semantic-release-backmerge",
-      {
-        "backmergeBranches": [{"from": "main", "to": "dev"}],
-        "clearWorkspace": true
       }
     ]
   ]
