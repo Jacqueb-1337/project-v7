@@ -17,6 +17,7 @@ const val tag = "Project V7 Patcher"
 
 const val SOURCE_NAME = "Morphe Patches"
 const val MANAGER_REPO_URL = "https://github.com/Jacqueb-1337/project-v7"
+const val MANAGER_RELEASES_URL = "$MANAGER_REPO_URL/releases"
 const val SOURCE_REPO_URL = "https://github.com/MorpheApp/morphe-patches"
 const val MORPHE_API_URL = "https://api.morphe.software"
 const val MORPHE_WEBSITE_URL = "https://morphe.software"
