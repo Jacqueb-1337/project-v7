@@ -29,8 +29,6 @@ import app.morphe.manager.util.AppDataSource
 import app.morphe.manager.util.syncFcmTopics
 import app.morphe.manager.worker.UpdateCheckInterval
 import app.morphe.manager.worker.UpdateCheckWorker
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -48,9 +46,8 @@ class SettingsViewModel(
     private val appDataResolver: AppDataResolver,
     private val appContext: Context,
 ) : ViewModel() {
-    /** True when Google Play Services is available; FCM handles notifications on these devices. */
-    val hasGms: Boolean = GoogleApiAvailability.getInstance()
-        .isGooglePlayServicesAvailable(appContext) == ConnectionResult.SUCCESS
+    /** PV7 has no owned Firebase project yet; use WorkManager even on GMS devices. */
+    val hasGms: Boolean = false
 
     /** True when POST_NOTIFICATIONS is granted (always true below Android 13). */
     fun hasNotificationPermission(): Boolean =
