@@ -96,3 +96,28 @@ The provider implementation is
 `scripts/embed_storage_provider.py` compiles it to secondary DEX in
 PV7's host-template APK. The manager registers the provider authority
 based on each generated wrapper's actual application ID.
+
+### Native ABI parity (x86_64 emulator)
+
+Both arm64-v8a and x86_64 host libraries now embed the generic
+guest-storage JNI hooks. The same scripts/embed_storage_native.py
+packages either architecture using --abi arm64-v8a (default) or
+--abi x86_64; it verifies ELF machine type and byte-for-byte
+preservation of all other APK entries. Run
+python scripts/verify_storage_abis.py for the two-ABI regression check.
+
+The x86_64 binary was built with Android NDK 28 and preserved all
+8,187 existing exported symbols. An unsigned template was
+debug-signed outside the repository and installed on the
+x86_64 Android emulator. The activity launched, Android's native
+loader reported libpv7host.so loaded successfully, and the
+PV7 surface initialized. That template contains zero guest payload
+bytes, so this proves native host startup only, NOT Best Park
+booting, accessing an OBB, or reaching a game frame.
+
+The game's Files DocumentsProvider is added at APK assembly time,
+not directly registered in the unsigned template manifest.
+Standalone JNI and Java storage tests pass. A manager Gradle test
+rerun may require access to the Morphe private Maven package
+app.morphe:morphe-patcher:1.15.0; a 401 is a dependency-fetch
+blocker, not a storage unit-test failure.
