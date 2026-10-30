@@ -37,17 +37,25 @@ backed by Android's standard `Context.getObbDir()`. It lives beside
 `data/`, `cache/` and `files/` inside `GuestSharedStorage`.
 This is a deliberate PV7 layout choice.
 
-Android games can request OBBs using `getObbDir()`,
-`getPackageName()`, legacy external storage paths, or direct native
-filesystem calls. A PV7 compatibility backend must redirect the game's
-OBB lookups into `GuestSharedStorage/obb/`. Without that redirection, the
-game can still look in the conventional external OBB directory.
+PV7 now emits package-specific path.alias.N entries into the generated
+wrapper compatibility properties, mapping legacy OBB, data, cache, and
+files paths to their private GuestSharedStorage folders. The existing
+native path-normalization interface consumes those aliases for its
+supported guest filesystem calls. This is shared-wrapper configuration,
+not a Best Park-specific patch.
 
-**The SAF storage provider does not implement the native/runtime path
-redirection.** In particular, the separate Cocos2d-x backend for
-Regular Show: Best Park is still unfinished. Adding an OBB file here by
-itself does not make the game launch or find its expansion data.
+Pv7GuestStoragePaths and Pv7GuestStorageBridge are embedded into the
+host template's secondary DEX. They provide common Java/JNI entrypoints
+for rewriting returned guest paths and resolving existing expansion files.
+The resolver also rejects directory traversal and avoids hijacking paths
+belonging to other packages.
 
+Important remaining runtime limitation: embedding the Java entrypoints
+does not itself intercept arbitrary Context.getObbDir or every
+game-specific Java helper. JNI dispatch to these entrypoints, and any
+native filesystem operation that does not use NormalizeGuestPath, still
+need integration and Android device verification. No first frame or
+playability is claimed solely from this storage change.
 Files are never silently copied from another installed application's
 protected data or OBB directory. Obtain a lawful copy of the expansion file
 and import it into the private OBB folder through the system picker. The

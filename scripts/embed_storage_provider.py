@@ -16,7 +16,7 @@ import tempfile
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "host/src/app/projectv7/wrapper/Pv7GameStorageDocumentsProvider.java"
+SOURCES = sorted((ROOT / "host/src/app/projectv7/wrapper").glob("Pv7*.java"))
 TEMPLATE = ROOT / "app/src/main/assets/pv7/templates/pv7-host-template.apk"
 
 
@@ -39,7 +39,7 @@ def run(*command: str):
 
 
 def main():
-    if not SOURCE.is_file() or not TEMPLATE.is_file():
+    if not SOURCES or not all(source.is_file() for source in SOURCES) or not TEMPLATE.is_file():
         raise RuntimeError("Missing provider source or PV7 host template")
     sdk = sdk_root()
     jar = sdk / "platforms/android-36/android.jar"
@@ -52,7 +52,7 @@ def main():
         classes = base / "classes"
         classes.mkdir()
         run(binary("javac"), "-encoding", "UTF-8", "-source", "8", "-target", "8",
-            "-classpath", jar, "-d", classes, SOURCE)
+            "-classpath", jar, "-d", classes, *SOURCES)
         archive = base / "provider.jar"
         run(binary("jar"), "--create", "--file", archive, "-C", classes, ".")
         dex_dir = base / "dex"
