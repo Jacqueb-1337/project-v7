@@ -151,7 +151,7 @@ class Pv7WrapperAssembler {
             addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
 
-            applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root)
+            applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root, config.versionCode)
 
             config.launcherIcon
                 ?.takeIf { it.isFile }
@@ -219,7 +219,8 @@ class Pv7WrapperAssembler {
     private fun applyGenericGuestStoragePaths(
         apk: ApkModule,
         guestPackageName: String,
-        scratchRoot: File
+        scratchRoot: File,
+        guestVersionCode: Int?
     ) {
         if (!Regex("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$")
                 .matches(guestPackageName)) {
@@ -268,6 +269,9 @@ class Pv7WrapperAssembler {
             append(existing.trimEnd())
             if (isNotEmpty()) append('\n')
             append("guest.package=").append(guestPackageName).append('\n')
+            guestVersionCode?.takeIf { it > 0 }?.let {
+                append("property.pv7.guestVersionCode=").append(it).append('\n')
+            }
             // Do not let the former private-path handler take precedence
             // over the explicit shared files/cache/data aliases.
             append("path.rewritePrivate=false\n")
