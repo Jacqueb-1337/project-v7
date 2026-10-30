@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(pv7_guest_storage_jni_test LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+add_executable(pv7_guest_storage_jni_test pv7_guest_storage_jni_test.cpp)
+enable_testing()
+add_test(NAME pv7_guest_storage_jni_test COMMAND pv7_guest_storage_jni_test)

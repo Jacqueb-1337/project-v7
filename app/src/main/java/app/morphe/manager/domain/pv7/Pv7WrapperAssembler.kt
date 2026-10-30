@@ -151,9 +151,7 @@ class Pv7WrapperAssembler {
             addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
 
-            config.guestPackageName
-                ?.takeIf { it.isNotBlank() }
-                ?.let { applyGuestPackageOverride(module, it, guestPayload.root) }
+            applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root, config.versionCode)
 
             config.launcherIcon
                 ?.takeIf { it.isFile }
@@ -218,34 +216,77 @@ class Pv7WrapperAssembler {
                 .setValueAsString("android.content.action.DOCUMENTS_PROVIDER")
         }
     }
-    private fun applyGuestPackageOverride(
+    private fun applyGenericGuestStoragePaths(
         apk: ApkModule,
         guestPackageName: String,
-        scratchRoot: File
+        scratchRoot: File,
+        guestVersionCode: Int?
     ) {
+        if (!Regex("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$")
+                .matches(guestPackageName)) {
+            throw IOException("Invalid original guest package for PV7 storage mapping")
+        }
         val existing = apk.getInputSource(COMPAT_PROPERTIES_APK_PATH)
-            ?.openStream()
-            ?.bufferedReader()
-            ?.use { it.readText() }
-            .orEmpty()
+            ?.openStream()?.bufferedReader()?.use { it.readText() }.orEmpty()
+
+        // The native PV7 compatibility runtime already accepts path.alias.N
+        // and turns toFilesRelative into the wrapper's private filesDir.
+        // Skip indices defined by other compatibility modules.
+        var index = (Regex("(?m)^path\\.alias\\.(\\d+)\\.")
+            .findAll(existing)
+            .mapNotNull { it.groupValues[1].toIntOrNull() }
+            .maxOrNull() ?: -1) + 1
+        val pathAliases = mutableListOf<Pair<String, String>>()
+        val externalRoots = listOf(
+            "/storage/emulated/0", "/sdcard", "/mnt/sdcard",
+            "/storage/sdcard0", "/mnt/shell/emulated/0"
+        )
+        for (storageRoot in externalRoots) {
+            val obb = "$storageRoot/Android/obb/$guestPackageName"
+            pathAliases += obb to "GuestSharedStorage/obb"
+            val androidData = "$storageRoot/Android/data/$guestPackageName"
+            for (kind in listOf("files", "cache", "data")) {
+                pathAliases += "$androidData/$kind" to "GuestSharedStorage/$kind"
+            }
+            pathAliases += androidData to "GuestSharedStorage/data"
+        }
+        for (appRoot in listOf(
+            "/data/data/$guestPackageName",
+            "/data/user/0/$guestPackageName",
+            "/data/user_de/0/$guestPackageName"
+        )) {
+            for (kind in listOf("obb", "files", "cache", "data")) {
+                pathAliases += "$appRoot/$kind" to "GuestSharedStorage/$kind"
+            }
+            pathAliases += appRoot to "GuestSharedStorage/data"
+        }
+        pathAliases += "/Android/obb/$guestPackageName" to "GuestSharedStorage/obb"
+        pathAliases += "/Android/data/$guestPackageName/files" to "GuestSharedStorage/files"
+        pathAliases += "/Android/data/$guestPackageName/cache" to "GuestSharedStorage/cache"
+        pathAliases += "/Android/data/$guestPackageName/data" to "GuestSharedStorage/data"
 
         val text = buildString {
-            val preserved = existing.trimEnd()
-            if (preserved.isNotEmpty()) {
-                append(preserved)
-                append('\n')
+            append(existing.trimEnd())
+            if (isNotEmpty()) append('\n')
+            append("guest.package=").append(guestPackageName).append('\n')
+            guestVersionCode?.takeIf { it > 0 }?.let {
+                append("property.pv7.guestVersionCode=").append(it).append('\n')
             }
-            append("guest.package=")
-            append(guestPackageName)
-            append('\n')
+            // Do not let the former private-path handler take precedence
+            // over the explicit shared files/cache/data aliases.
+            append("path.rewritePrivate=false\n")
+            for ((from, target) in pathAliases) {
+                append("path.alias.").append(index).append(".from=").append(from).append('\n')
+                append("path.alias.").append(index).append(".toFilesRelative=")
+                    .append(target).append('\n')
+                index++
+            }
         }
-
-        val target = File(scratchRoot, "generated/compat.properties")
-        target.parentFile?.mkdirs()
-        target.writeText(text)
-        replaceFile(apk, target, COMPAT_PROPERTIES_APK_PATH)
+        val generated = File(scratchRoot, "generated/compat.properties")
+        generated.parentFile?.mkdirs()
+        generated.writeText(text, Charsets.UTF_8)
+        replaceFile(apk, generated, COMPAT_PROPERTIES_APK_PATH)
     }
-
     private fun overlayModulePayloads(
         apk: ApkModule,
         assets: AssetManager,
