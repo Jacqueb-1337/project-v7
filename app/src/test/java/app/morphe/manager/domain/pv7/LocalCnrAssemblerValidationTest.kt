@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import sun.misc.Unsafe
 import java.io.File
 import java.util.zip.ZipFile
+import org.junit.Assume.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -14,11 +15,11 @@ class LocalCnrAssemblerValidationTest {
     @Test
     fun generateRealCnrWrapper() {
         val input = File("local-test/cnr-original.apk").absoluteFile
-        val template = File("app/src/main/assets/pv7/templates/pv7-host-template.apk").absoluteFile
+        val template = File("src/main/assets/pv7/templates/pv7-host-template.apk").absoluteFile
         val staging = File("local-test/assembler-work").absoluteFile
         val output = File("local-test/cnr-assembled.apk").absoluteFile
 
-        require(input.isFile) { "Missing original CNR APK: $input" }
+        assumeTrue("Optional local-only CNR APK fixture is absent: $input", input.isFile)
         require(template.isFile) { "Missing host template: $template" }
         staging.deleteRecursively()
         output.delete()
@@ -65,7 +66,7 @@ class LocalCnrAssemblerValidationTest {
     }
 
     private fun loadModule(relative: String): Pv7ModuleManifest {
-        val file = File(relative).absoluteFile
+        val file = File("../$relative").absoluteFile
         require(file.isFile) { "Missing module: $file" }
         return json.decodeFromString<Pv7ModuleManifest>(file.readText())
             .copy(sourceAssetPath = "file:" + file.parentFile.absolutePath)
