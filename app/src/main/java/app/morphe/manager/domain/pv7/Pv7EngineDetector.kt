@@ -16,6 +16,16 @@ object Pv7EngineDetector {
         """(?<![0-9])([0-9]{1,4}\.[0-9]{1,3}\.[0-9]{1,3}[abcfp][0-9]+)(?![0-9])"""
     )
 
+    // Historical Cocos2d-x version strings vary across release candidates:
+    // "cocos2d-2.1rc0-x-2.1.2" and "cocos2d-x 2.2.6" both occur in official
+    // sources. Capture whole tokens, not just a guessed semantic version.
+    private val cocosVersionPattern = Regex(
+        """(?<![A-Za-z0-9_])(cocos2d-(?:[0-9][A-Za-z0-9.]*-x-[0-9]+(?:\.[0-9]+){1,3}|x[ -][0-9]+(?:\.[0-9]+){1,3}))(?![A-Za-z0-9_.-])"""
+    )
+    private val cocosNativeSymbols = listOf(
+        "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeInit",
+        "_ZN7cocos2d14cocos2dVersionEv"
+    )
     fun detectAbis(apk: File): Set<String> =
         runCatching {
             ZipFile(apk).use { zip ->
@@ -70,6 +80,36 @@ object Pv7EngineDetector {
                 }
             }
 
+            // Scan game-owned native ELF images for the engine's compiled-in
+            // version. This is read-only and does not execute untrusted APK code.
+            // Prefer a direct version to symbol-only evidence.
+            var cocosFallback: String? = null
+            for (entry in entries) {
+                if (entry.isDirectory ||
+                    !entry.name.startsWith("lib/") ||
+                    !entry.name.endsWith(".so") ||
+                    entry.name.endsWith("/libunity.so")) continue
+
+                val scan = zip.getInputStream(entry).use {
+                    scanCocosNative(it, maxBytes = 128L * 1024L * 1024L)
+                }
+                if (scan.version != null) {
+                    return Pv7EngineFingerprint(
+                        id = "cocos2dx",
+                        version = scan.version,
+                        evidence = entry.name
+                    )
+                }
+                if (scan.nativeSignature) cocosFallback = entry.name
+            }
+
+            if (cocosFallback != null) {
+                return Pv7EngineFingerprint(
+                    id = "cocos2dx",
+                    version = null,
+                    evidence = cocosFallback
+                )
+            }
             // libunity.so is itself enough to identify the engine even when a
             // stripped/custom build no longer exposes an exact version string.
             unityLibraries.firstOrNull()?.let { entry ->
@@ -104,6 +144,28 @@ object Pv7EngineDetector {
         return null
     }
 
+    internal data class CocosNativeScan(val version: String?, val nativeSignature: Boolean)
+
+    internal fun scanCocosNative(input: InputStream, maxBytes: Long): CocosNativeScan {
+        val buffer = ByteArray(64 * 1024)
+        var carry = ""
+        var total = 0L
+        var symbolFound = false
+        while (total < maxBytes) {
+            val remaining = (maxBytes - total).coerceAtMost(buffer.size.toLong()).toInt()
+            val read = input.read(buffer, 0, remaining)
+            if (read < 0) break
+            if (read == 0) continue
+            total += read
+            val chunk = carry + String(buffer, 0, read, Charsets.ISO_8859_1)
+            cocosVersionPattern.find(chunk)?.groupValues?.getOrNull(1)?.let {
+                return CocosNativeScan(it, true)
+            }
+            if (cocosNativeSymbols.any { chunk.contains(it) }) symbolFound = true
+            carry = chunk.takeLast(128)
+        }
+        return CocosNativeScan(version = null, nativeSignature = symbolFound)
+    }
     private fun scanUnityVersion(input: InputStream, maxBytes: Long): String? {
         val buffer = ByteArray(64 * 1024)
         var carry = ""
