@@ -64,6 +64,7 @@ import app.morphe.manager.domain.manager.PreferencesManager
 import app.morphe.manager.domain.manager.SourceBundleSortMode
 import app.morphe.manager.domain.repository.BlocklistRepository
 import app.morphe.manager.domain.repository.PatchBundleRepository
+import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
 import app.morphe.manager.domain.repository.SourceMuteRepository
 import app.morphe.manager.domain.repository.appsBrought
 import app.morphe.manager.ui.screen.patcher.IncompatiblePatcherVersionDialog
@@ -117,9 +118,29 @@ fun BundleManagementSheet(
     val bundleInfo by patchBundleRepository.allBundlesInfoFlow.collectAsStateWithLifecycle(emptyMap())
     val blockedSources by patchBundleRepository.blockedSources.collectAsStateWithLifecycle(emptyMap())
     val keptFrom by sourceMuteRepository.mutedSources.collectAsStateWithLifecycle(emptyMap())
-    // How many of its apps each source still brings, out of all it names
-    val appCounts = remember(bundleInfo, keptFrom) {
-        bundleInfo.mapValues { (_, info) -> info.appsBrought(keptFrom).size to info.listedApps().size }
+    // The inherited Morphe source is trimmed to official Project V7 apps. Custom sources
+    // remain unrestricted and can introduce additional apps.
+    val officialPackages = rememberPv7OfficialPackageNames()
+    val appCounts = remember(bundleInfo, keptFrom, officialPackages) {
+        bundleInfo.mapValues { (uid, info) ->
+            val listed = info.listedApps().let { apps ->
+                if (uid == DEFAULT_SOURCE_UID) apps.intersect(officialPackages) else apps
+            }
+            val brought = info.appsBrought(keptFrom).let { apps ->
+                if (uid == DEFAULT_SOURCE_UID) apps.intersect(officialPackages) else apps
+            }
+            brought.size to listed.size
+        }
+    }
+    val visiblePatchCounts = remember(patchCounts, bundleInfo, officialPackages) {
+        patchCounts.toMutableMap().apply {
+            bundleInfo[DEFAULT_SOURCE_UID]?.let { info ->
+                this[DEFAULT_SOURCE_UID] = info.patches.count { patch ->
+                    patch.isUniversal ||
+                            patch.compatiblePackages.orEmpty().any { it.packageName in officialPackages }
+                }
+            }
+        }
     }
 
     val showSheetOnboarding = globalOnboardingState?.sheetOnboardingActive == true
@@ -395,7 +416,7 @@ fun BundleManagementSheet(
                             ) { itemIsDragging ->
                                 BundleManagementCard(
                                     bundle = bundle,
-                                    patchCount = patchCounts[bundle.uid] ?: 0,
+                                    patchCount = visiblePatchCounts[bundle.uid] ?: 0,
                                     patchMatchCount = patchMatchCounts[bundle.uid],
                                     appCount = appCounts[bundle.uid] ?: (0 to 0),
                                     updateInfo = manualUpdateInfo[bundle.uid],

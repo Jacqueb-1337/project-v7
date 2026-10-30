@@ -465,10 +465,19 @@ class HomeApps(
         val metadata = BundleAppMetadata.buildFrom(enabledInfo)
         // Names only, for records whose bundle the user has since disabled
         val allMetadata = BundleAppMetadata.buildFrom(ready.info)
-        val appsBySource = enabledInfo.mapValues { (_, info) -> info.appsBrought(keptFrom) }
-        // Project V7 home is catalog-driven. Keep inherited Morphe sources internal,
-        // but do not surface their unrelated apps in the supported-app list.
-        val packages = pv7Apps.keys.toMutableSet()
+        // The inherited Morphe source is only background infrastructure in Project V7.
+        // Keep its unrelated upstream apps out, while allowing custom sources to introduce
+        // additional apps beyond the official Project V7 catalog.
+        val appsBySource = enabledInfo.mapValues { (uid, info) ->
+            val apps = info.appsBrought(keptFrom)
+            if (uid == DEFAULT_SOURCE_UID) apps.intersect(pv7Apps.keys) else apps
+        }
+        val packages = pv7Apps.keys.toMutableSet().apply {
+            appsBySource
+                .filterKeys { it != DEFAULT_SOURCE_UID }
+                .values
+                .forEach(::addAll)
+        }
         val sourceGroups = buildHomeAppSourceGroups(
             enabledInfo = enabledInfo,
             appsBySource = appsBySource,

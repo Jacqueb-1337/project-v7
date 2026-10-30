@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morphe.manager.R
 import app.morphe.manager.domain.repository.PatchBundleRepository
+import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
 import app.morphe.manager.domain.repository.SourceMuteRepository
 import app.morphe.manager.domain.repository.appsToKeepFrom
 import app.morphe.manager.patcher.patch.PatchInfo
@@ -55,15 +56,29 @@ fun AppPatchesDialog(
     isLoading: Boolean = false
 ) {
     val sourcesByUid = rememberSourcesByUid()
-    val sourceAccents = patchesByBundle.keys.associateWith { uid ->
+    val officialPackages = rememberPv7OfficialPackageNames()
+    val visiblePatchesByBundle = remember(patchesByBundle, item.packageName, officialPackages) {
+        patchesByBundle.mapValues { (uid, patches) ->
+            if (uid == DEFAULT_SOURCE_UID) {
+                if (item.packageName !in officialPackages) emptyList()
+                else patches.filter { patch ->
+                    patch.compatiblePackages?.any { it.packageName == item.packageName } == true
+                }
+            } else {
+                patches
+            }
+        }.filterValues { it.isNotEmpty() }
+    }
+    val sourceAccents = visiblePatchesByBundle.keys.associateWith { uid ->
         key(uid) { sourcesByUid[uid]?.let { rememberBundleAccent(it) } }
     }
 
     // Sources with at least one patch written for this app come first, then those with universal
-    // patches alone, each by name. Within a source its specific patches lead its universal ones
-    val sections = remember(patchesByBundle, bundleNames, item.packageName, sourcesByUid, sourceAccents) {
-        val isMultiBundle = patchesByBundle.size > 1
-        patchesByBundle.entries
+    // patches alone, each by name. The inherited Morphe source does not contribute its upstream
+    // universal patches to Project V7 apps; custom sources keep normal universal-patch behavior.
+    val sections = remember(visiblePatchesByBundle, bundleNames, item.packageName, sourcesByUid, sourceAccents) {
+        val isMultiBundle = visiblePatchesByBundle.size > 1
+        visiblePatchesByBundle.entries
             .sortedWith(
                 compareBy(
                     { (_, patches) -> patches.all { it.isUniversal } },
@@ -370,15 +385,24 @@ fun AppPatchSourcesDialog(
     // Keyed by app, the way every rule below asks the question
     val keptFrom by sourceMuteRepository.mutedSources.collectAsStateWithLifecycle(emptyMap())
 
-    // Which sources have anything to offer each app. A universal patch names no app, so the source
-    // carrying it reaches every one of them
-    val coveredBy: Map<String, Set<Int>> = remember(bundleInfo, packages) {
+    val officialPackages = rememberPv7OfficialPackageNames()
+
+    // Which sources have anything to offer each app. Custom sources keep normal universal-patch
+    // behavior. The inherited Morphe source must explicitly target an official Project V7 app,
+    // so its upstream universal patches do not make it appear for every Project V7 app.
+    val coveredBy: Map<String, Set<Int>> = remember(bundleInfo, packages, officialPackages) {
         packages.associateWith { packageName ->
             bundleInfo.entries.mapNotNullTo(mutableSetOf()) { (uid, info) ->
                 uid.takeIf {
-                    info.patches.any { patch ->
-                        patch.isUniversal ||
-                                patch.compatiblePackages?.any { it.packageName == packageName } == true
+                    if (uid == DEFAULT_SOURCE_UID) {
+                        packageName in officialPackages && info.patches.any { patch ->
+                            patch.compatiblePackages?.any { it.packageName == packageName } == true
+                        }
+                    } else {
+                        info.patches.any { patch ->
+                            patch.isUniversal ||
+                                    patch.compatiblePackages?.any { it.packageName == packageName } == true
+                        }
                     }
                 }
             }

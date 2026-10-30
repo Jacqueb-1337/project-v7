@@ -49,7 +49,9 @@ import app.morphe.manager.domain.bundles.APIPatchBundle
 import app.morphe.manager.domain.bundles.PatchBundleSource
 import app.morphe.manager.domain.bundles.PatchBundleSource.Extensions.usesPrerelease
 import app.morphe.manager.domain.bundles.RemotePatchBundle
+
 import app.morphe.manager.domain.repository.PatchBundleRepository
+import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
 import app.morphe.manager.domain.repository.PatchBundleRepository.LocalFileCheck
 import app.morphe.manager.domain.repository.PatchBundleRepository.RemoteSourceRejection
 import app.morphe.manager.domain.repository.PatchBundleRepository.RemoteUrlCheck
@@ -654,8 +656,20 @@ fun BundlePatchesDialog(
         patchBundleRepository.allBundlesInfoFlow.mapNotNull { it[src.uid]?.patches }
     }.collectAsStateWithLifecycle(emptyList())
 
+    val officialPackages = rememberPv7OfficialPackageNames()
+    val visiblePatches = remember(patches, src.uid, officialPackages) {
+        if (src.uid == DEFAULT_SOURCE_UID) {
+            patches.filter { patch ->
+                patch.isUniversal ||
+                        patch.compatiblePackages.orEmpty().any { it.packageName in officialPackages }
+            }
+        } else {
+            patches
+        }
+    }
+
     val universalTitle = stringResource(R.string.expert_mode_universal_patches)
-    val sections = remember(patches, universalTitle) { patchesByApp(patches, universalTitle) }
+    val sections = remember(visiblePatches, universalTitle) { patchesByApp(visiblePatches, universalTitle) }
     val appCount = sections.count { it.packageName != null }
     val expertBadgeTooltip = stringResource(R.string.sources_patch_expert_badge_tooltip)
 
@@ -663,7 +677,7 @@ fun BundlePatchesDialog(
         icon = { modifier -> BundleIcon(bundle = src, modifier = modifier) },
         title = src.displayTitle,
         subtitle = listOfNotNull(
-            pluralStringResource(R.plurals.patch_count, patches.size, patches.size.toString()),
+            pluralStringResource(R.plurals.patch_count, visiblePatches.size, visiblePatches.size.toString()),
             pluralStringResource(R.plurals.home_category_app_count, appCount, appCount.toString())
                 .takeIf { appCount > 1 }
         ).joinToString(" · "),
@@ -1084,8 +1098,15 @@ fun SourceAppsDialog(
     val appMetadata by patchBundleRepository.allAppMetadata.collectAsStateWithLifecycle()
     val keptFrom by sourceMuteRepository.mutedSources.collectAsStateWithLifecycle(emptyMap())
 
-    val apps = remember(bundleInfo, appMetadata, src.uid) {
-        bundleInfo[src.uid]?.listedApps().orEmpty()
+    val officialPackages = rememberPv7OfficialPackageNames()
+    val apps = remember(bundleInfo, appMetadata, src.uid, officialPackages) {
+        val listed = bundleInfo[src.uid]?.listedApps().orEmpty()
+        val visible = if (src.uid == DEFAULT_SOURCE_UID) {
+            listed.intersect(officialPackages)
+        } else {
+            listed
+        }
+        visible
             .map { packageName -> packageName to (appMetadata[packageName]?.displayName ?: packageName) }
             .sortedBy { (_, label) -> label.lowercase(Locale.ROOT) }
     }

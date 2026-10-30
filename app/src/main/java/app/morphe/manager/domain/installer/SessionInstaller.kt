@@ -18,8 +18,7 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
+
 import android.os.Process
 import android.util.Log
 import app.morphe.manager.ManagerApplication
@@ -31,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import rikka.shizuku.Shizuku
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
@@ -43,6 +43,7 @@ private const val ACTION_UNINSTALL_STATUS = "app.morphe.manager.UNINSTALL_STATUS
 private const val EXTRA_SESSION_ID = "session_id"
 private const val EXTRA_UNINSTALL_REQUEST_ID = "uninstall_request_id"
 private const val CONFIRM_NOTIFICATION_ID = 2006
+private const val INSTALL_SESSION_TIMEOUT_MS = 120_000L
 
 /**
  * PackageInstaller-based installer.
@@ -81,9 +82,14 @@ class SessionInstaller(private val app: Application) {
         val silentUpdate = !silentUpdatesRefused
         Log.d(TAG, "installInternal: ${apkFile.name} (${apkFile.length()} bytes), silentUpdate=$silentUpdate")
         return try {
-            awaitSession(apkFile, silentUpdate)
+            withTimeout(INSTALL_SESSION_TIMEOUT_MS) {
+                awaitSession(apkFile, silentUpdate)
+            }
+        } catch (_: TimeoutCancellationException) {
+            Log.e(TAG, "Timed out waiting for PackageInstaller to finish")
+            InstallResult.Failure("Timed out waiting for Android package installer")
         } finally {
-            // However it ended, a confirmation nobody answered must not outlive the session
+            // However it ended, a confirmation nobody answered must not outlive the session.
             ManagerApplication.onReturnToForeground = null
             notificationManager.cancel(CONFIRM_NOTIFICATION_ID)
         }
@@ -162,24 +168,7 @@ class SessionInstaller(private val app: Application) {
                                     // broadcast, so the receiver is kept alive intentionally.
                                     userActionShown = true
                                     launchUserConfirmation(intent)
-                    val statusReceiver = this
-                    if (ManagerApplication.isInForeground) {
-                        ManagerApplication.onReturnToForeground = {
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                if (cont.isActive) {
-                                    val sessionStillOpen = runCatching {
-                                        installer.getSessionInfo(sessionId) != null
-                                    }.getOrDefault(false)
-                                    if (sessionStillOpen) {
-                                        Log.w(TAG, "Session $sessionId returned from confirmation without a final status; resetting install")
-                                        runCatching { app.unregisterReceiver(statusReceiver) }
-                                        runCatching { installer.abandonSession(sessionId) }
-                                        cont.resumeWithException(InstallCancelledException())
-                                    }
-                                }
-                            }, 500L)
-                        }
-                    }
+
                                 }
 
                                 PackageInstaller.STATUS_FAILURE_ABORTED -> {
