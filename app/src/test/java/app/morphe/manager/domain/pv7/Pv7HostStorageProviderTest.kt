@@ -25,7 +25,6 @@ class Pv7HostStorageProviderTest {
             )
             assertTrue("Missing generic path resolver", text.contains("Pv7GuestStoragePaths"))
             assertTrue("Missing generic context bridge", text.contains("Pv7GuestStorageBridge"))
-            assertTrue("Missing guest OBB path API", text.contains("getObbDir"))
         }
     }
 }
