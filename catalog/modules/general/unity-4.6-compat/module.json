@@ -2,7 +2,7 @@
   "id": "unity-4.6-compat",
   "name": "Unity 4.6 Compatibility",
   "version": "1.1.0",
-  "kind": "general",
+  "kind": "runtime",
   "category": "Engine compatibility",
   "description": "Experimental legacy Unity 4.6.x ARMv7 private-storage compatibility policy. Tested only with Cops N Robbers 3.0.2 on Unity 4.6.1f1; other games are unverified.",
   "targets": {
@@ -29,5 +29,9 @@
   ],
   "payloadFiles": [
     "assets/pv7/compat.properties"
-  ]
+  ],
+  "selectionGroup": "unity-runtime",
+  "payloadSha256": {
+    "assets/pv7/compat.properties": "d1009f5154f972e711925449c311f0ba08555507fd6c6fa986f6928854e1eb0d"
+  }
 }

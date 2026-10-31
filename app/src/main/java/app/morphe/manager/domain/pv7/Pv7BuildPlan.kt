@@ -23,7 +23,7 @@ data class Pv7BuildPlan(
     val selectedModules: List<Pv7ModuleManifest>
 ) {
     val requiresWrapper: Boolean
-        get() = enableCoreCompatibility || compatModules.isNotEmpty() || requiredOptions.isNotEmpty()
+        get() = selectedModules.isNotEmpty() || enableCoreCompatibility || compatModules.isNotEmpty() || requiredOptions.isNotEmpty()
 
     companion object {
         val Empty = Pv7BuildPlan(
@@ -65,6 +65,31 @@ class Pv7BuildPlanner(private val context: Context) {
             throw IllegalStateException(
                 "PV7 dependency closure is incomplete: " + missingDependencies.joinToString()
             )
+        }
+
+        val selectedSet = selectedModuleIds
+        val conflicts = selectedModules.flatMap { module ->
+            module.conflicts.filter { it.moduleId in selectedSet }
+                .map { module.id + " conflicts with " + it.moduleId +
+                    (if (it.reason.isBlank()) "" else ": " + it.reason) }
+        }
+        if (conflicts.isNotEmpty()) {
+            throw IllegalStateException("PV7 module conflicts: " + conflicts.joinToString("; "))
+        }
+        // Multiple backend/runtime modules are supported if their APK payloads
+        // do not collide. Compat properties are merged explicitly by assembler.
+        val owners = mutableMapOf<String, String>()
+        selectedModules.forEach { module ->
+            module.payloadFiles.filterNot { it == Pv7WrapperAssembler.COMPAT_PROPERTIES_APK_PATH }
+                .forEach { path ->
+                    val previous = owners.putIfAbsent(path, module.id)
+                    if (previous != null && previous != module.id) {
+                        throw IllegalStateException(
+                            "PV7 modules " + previous + " and " + module.id +
+                                " both write " + path + ". Select one or publish a combined module."
+                        )
+                    }
+                }
         }
 
         var enableCoreCompatibility = false

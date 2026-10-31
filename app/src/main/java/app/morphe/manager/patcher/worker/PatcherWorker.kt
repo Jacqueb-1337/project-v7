@@ -485,7 +485,21 @@ class PatcherWorker(
                             ?.let { args.pv7OptionValues[it.storageKey] }
                             ?.takeIf { it.isNotBlank() }
 
-                    val sourceInfo = pm.getPackageInfo(inputFile)
+                    // An installed or imported PV7 wrapper can provide the exact
+                    // original APK if built with the new embedded-guest format.
+                    // Older wrappers must be repatched from an original APK.
+                    val previousLock = runCatching {
+                        app.morphe.manager.domain.pv7.Pv7EmbeddedGuest.readLock(inputFile)
+                    }.getOrNull()
+                    val originalForWrap = if (previousLock != null) {
+                        File(pv7Work, "recovered-original.apk").also {
+                            app.morphe.manager.domain.pv7.Pv7EmbeddedGuest.extractOriginal(inputFile, it)
+                        }
+                    } else inputFile
+                    val sourceInfo = pm.getPackageInfo(originalForWrap)
+                    val originalPackageName = previousLock?.guestPackageName
+                        ?: sourceInfo?.packageName
+                        ?: args.packageName
                     val sourceLabel = sourceInfo
                         ?.let { with(pm) { it.label() } }
                         ?.takeIf { it.isNotBlank() }
@@ -522,14 +536,14 @@ class PatcherWorker(
 
                     val assembler = Pv7WrapperAssembler()
                     val guestPayload = assembler.extractLegacyUnityGuest(
-                        inputApk = inputFile,
+                        inputApk = originalForWrap,
                         stagingRoot = File(pv7Work, "guest")
                     )
 
                     val wrapperPackage = optionValue("wrapper.setPackageId")
-                        ?: args.packageName + ".pv7"
+                        ?: if (previousLock != null) args.packageName else originalPackageName + ".pv7"
                     val launcherLabel = optionValue("wrapper.setLauncherLabel") ?: sourceLabel
-                    val guestPackage = optionValue("guest.setPackageId") ?: args.packageName
+                    val guestPackage = optionValue("guest.setPackageId") ?: originalPackageName
 
                     assembler.assembleFromTemplate(
                         templateApk = templateApk,
@@ -545,8 +559,24 @@ class PatcherWorker(
                             requestedPermissions = sourceInfo?.requestedPermissions?.toSet().orEmpty()
                         ),
                         assets = applicationContext.assets,
-                        selectedModules = pv7BuildPlan.selectedModules
+                        selectedModules = pv7BuildPlan.selectedModules,
+                        originalGuestApk = originalForWrap
                     )
+
+                    app.morphe.manager.domain.pv7.Pv7ModuleUpdateStore(applicationContext)
+                        .record(
+                            wrapperPackage,
+                            app.morphe.manager.domain.pv7.Pv7EmbeddedGuest.lockFor(
+                                Pv7WrapperConfig(
+                                    packageName = wrapperPackage,
+                                    launcherLabel = launcherLabel,
+                                    guestPackageName = guestPackage,
+                                    versionName = sourceVersionName
+                                ),
+                                pv7BuildPlan.selectedModules,
+                                originalForWrap
+                            )
+                        )
 
                     args.logger.info(
                         "PV7 wrapper assembled package=" + wrapperPackage +

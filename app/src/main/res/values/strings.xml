@@ -1,4 +1,6 @@
 <resources>
+    <string name="pv7_module_updates_title">Project V7 patches available to update</string>
+    <string name="pv7_module_updates_message">%1$d module updates for %2$d previously patched games. Open Project V7 to rebuild wrappers.</string>
     <!-- Home Screen -->
     <string name="home_other_apps">Other apps</string>
     <string name="home_other_apps_action">Choose APK</string>

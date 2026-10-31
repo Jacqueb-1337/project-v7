@@ -11,7 +11,13 @@ enum class Pv7ModuleKind {
     GENERAL,
 
     @SerialName("game")
-    GAME
+    GAME,
+
+    @SerialName("backend")
+    BACKEND,
+
+    @SerialName("runtime")
+    RUNTIME
 }
 
 @Serializable
@@ -52,6 +58,10 @@ data class Pv7ModuleManifest(
     val conflicts: List<Pv7ModuleConflict> = emptyList(),
     val operations: List<Pv7PatchOperation> = emptyList(),
     val payloadFiles: List<String> = emptyList(),
+    /** SHA-256 values of payloads; required for remote executable backends/runtimes. */
+    val payloadSha256: Map<String, String> = emptyMap(),
+    /** Variants sharing a group compete for one automatic choice, but can be selected manually. */
+    val selectionGroup: String? = null,
     @Transient val sourceAssetPath: String = ""
 )
 
@@ -126,12 +136,17 @@ object Pv7CatalogResolver {
             .maxByOrNull { it.matchSpecificity(target) }
 
         val testedRecommended = profile?.recommendedModules.orEmpty().toSet()
-        val engineSuggested = if (profile == null) {
-            modules.filter { it.suggestedWhenMatched && it.isDesignedFor(target) }.mapTo(linkedSetOf()) { it.id }
-        } else {
-            emptySet()
+        // Explicitly installed profiles do not suppress newer matching runtime/backends.
+        val suggestions = modules.filter {
+            it.suggestedWhenMatched && it.isDesignedFor(target) &&
+                (profile == null || it.kind in setOf(Pv7ModuleKind.BACKEND, Pv7ModuleKind.RUNTIME))
         }
-        val recommended = if (profile != null) testedRecommended else engineSuggested
+        val engineSuggested = suggestions.groupBy { it.selectionGroup ?: it.id }.values
+            .mapNotNull { group -> group.maxWithOrNull(compareBy<Pv7ModuleManifest> {
+                it.targets.engineVersions.maxOfOrNull(String::length) ?: 0
+            }.thenComparator { a, b -> Pv7ModuleVersions.compare(a.version, b.version) }) }
+            .mapTo(linkedSetOf()) { it.id }
+        val recommended = testedRecommended + engineSuggested
         val explicitSelection = userSelectedModuleIds ?: recommended
         val selected = linkedSetOf<String>()
         val dependencyOnly = linkedSetOf<String>()
@@ -233,11 +248,8 @@ object Pv7CatalogResolver {
             }
 
             val conflictReason = hardConflictReason(module)
-            if (conflictReason != null) {
-                hidden += Pv7HiddenModule(module, conflictReason)
-                return@forEach
-            }
-
+            // Always display every runtime/backend family; incompatible selections
+            // fail validation instead of disappearing from manual override lists.
             val badge = when {
                 module.id in testedRecommended -> Pv7ModuleBadge.RECOMMENDED
                 module.id in engineSuggested -> Pv7ModuleBadge.ENGINE_SUGGESTED
@@ -251,6 +263,9 @@ object Pv7CatalogResolver {
                 badge = badge,
                 selected = module.id in selected,
                 recommendationReason = when {
+                    conflictReason != null -> conflictReason
+                    !module.isDesignedFor(target) ->
+                        "Manual override: this module does not match the detected engine/version."
                     module.id in testedRecommended ->
                         "Tested and recommended by the Project V7 compatibility profile."
                     module.id in engineSuggested ->

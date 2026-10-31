@@ -26,6 +26,28 @@ Profiles list **module IDs** from the `id` field of those manifest files:
 
 Never use `modules/general/core-compat/module.json` as a value of `recommendedModules`, `dependencies`, or `moduleId`. These fields are resolved by ID. The validator will reject unresolved references, missing index paths, accidental catalog removals, and other structural problems.
 
+## Independent backends, runtimes, and updates
+
+Runtime and backend modules are separate from the PV7 Manager APK.
+Declare `"kind": "runtime"` or `"kind": "backend"`, target engine
+family/version patterns, `version`, and optionally a `selectionGroup`
+to select one best matching recommendation. All versions remain
+available for manual selection, subject to dependency and payload
+conflict validation. You may combine multiple nonconflicting backends
+and runtimes.
+
+For executable and other payloads of backend/runtime modules,
+`payloadSha256` must contain a SHA-256 digest for **every**
+`payloadFiles` path. Remote updates with mismatched hashes are rejected.
+Catalog updates do not instantly alter installed games: rebuild and
+re-sign their wrappers from the original or a verified embedded
+original APK. See [Module updates and repatching](../docs/module-updates.md).
+
+A module only adds compatibility when it ships actual implemented
+payloads. The production PV7 host still does not run Cocos games,
+even though the experimental Cocos compatibility effort has passed
+separate emulator diagnostics.
+
 ## Add reusable compatibility
 
 Create `modules/general/<module-id>/module.json`. Keep game-specific assumptions out of general modules.

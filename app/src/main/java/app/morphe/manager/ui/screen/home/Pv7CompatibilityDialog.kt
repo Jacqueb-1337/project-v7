@@ -24,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import app.morphe.manager.domain.pv7.Pv7ModuleUpdateStore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -61,8 +63,18 @@ internal fun Pv7CompatibilityDialog(
     onProceed: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val shownModules = resolution.visibleModules.filter {
-        it.selected || it.badge != Pv7ModuleBadge.UNTESTED || it.manifest.kind == Pv7ModuleKind.GENERAL
+    // Manual override always exposes every available backend/runtime family.
+    // Matching engine versions are recommended, but alternatives are visible.
+    val shownModules = resolution.visibleModules
+    val context = LocalContext.current
+    val moduleUpdates = remember(target.packageId, resolution.visibleModules) {
+        Pv7ModuleUpdateStore(context)
+            .available(resolution.visibleModules.map { it.manifest })
+            .filterKeys { packageName ->
+                Pv7ModuleUpdateStore(context).builds()[packageName]
+                    ?.guestPackageName == target.packageId
+            }
+            .values.flatten()
     }
     var editingCatalog by remember(catalogRepository) { mutableStateOf(catalogRepository) }
     val testedRecommendations = resolution.profile?.recommendedModules.orEmpty().toSet()
@@ -171,6 +183,28 @@ internal fun Pv7CompatibilityDialog(
                 }
             }
 
+            if (moduleUpdates.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("Module updates available",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        moduleUpdates.distinctBy { it.moduleId }.forEach { update ->
+                            Text(update.moduleId + "  " + update.installedVersion + " → " +
+                                update.availableVersion,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text("Choose updated modules below and rebuild the wrapper. " +
+                            "Existing installations need a replacement APK signed with the same key.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
             Text("Catalog repository (advanced)", style = MaterialTheme.typography.titleSmall)
             Text(
                 "Defaults to the official PV7 catalog. To test a fork, enter owner/repository " +
@@ -214,6 +248,14 @@ internal fun Pv7CompatibilityDialog(
                 }
             }
 
+            Text(
+                "Backends and runtimes are versioned independently. Matches are preselected; " +
+                    "you can choose other engine families or several compatible modules. " +
+                    "Conflicts and unsupported guest formats still block building.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             shownModules.forEachIndexed { index, row ->
                 val module = row.manifest
                 val isExplicit = module.id in explicitModuleIds
@@ -251,6 +293,10 @@ internal fun Pv7CompatibilityDialog(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
+                            row.recommendationReason?.let { message ->
+                                Text(message, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             if (module.description.isNotBlank()) {
                                 Spacer(Modifier.height(3.dp))
                                 Text(
@@ -269,6 +315,11 @@ internal fun Pv7CompatibilityDialog(
                                     isRecommended -> StatusBadge("Recommended", tone = SemanticTone.Primary)
                                     isSuggested -> StatusBadge("Experimental", tone = SemanticTone.Warning)
                                     else -> StatusBadge("Optional", tone = SemanticTone.Neutral)
+                                }
+                                when (module.kind) {
+                                    Pv7ModuleKind.BACKEND -> StatusBadge("Backend", tone = SemanticTone.Primary)
+                                    Pv7ModuleKind.RUNTIME -> StatusBadge("Runtime", tone = SemanticTone.Primary)
+                                    else -> Unit
                                 }
                                 StatusBadge(module.version, tone = SemanticTone.Neutral)
                             }
