@@ -39,6 +39,7 @@ import androidx.navigation.compose.rememberNavController
 import app.morphe.manager.domain.batch.BatchTarget
 import app.morphe.manager.domain.manager.PreferencesManager
 import app.morphe.manager.domain.repository.PatchBundleRepository
+import app.morphe.manager.worker.UpdateCheckWorker
 import app.morphe.manager.ui.model.navigation.*
 import app.morphe.manager.ui.screen.BatchPatcherScreen
 import app.morphe.manager.ui.screen.HomeScreen
@@ -121,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         // after the process was reclaimed - or any recreate - would replay a link already acted on
         if (savedInstanceState == null) {
             handleDeepLinkIntent(intent, vm)
+            UpdateCheckWorker.checkOnOpen(applicationContext)
         }
 
         setContent {

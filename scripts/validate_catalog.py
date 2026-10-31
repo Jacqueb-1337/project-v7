@@ -2,6 +2,7 @@
 """Validate the Project V7 compatibility catalog. No third-party dependencies."""
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import Counter
@@ -83,8 +84,8 @@ def main():
         if ident in module_ids:
             error(path, f"duplicate module ID {ident!r} (also in {module_ids[ident]})")
         module_ids[ident] = path
-        if module.get("kind") not in ("general", "game"):
-            error(path, "module.kind must be general or game")
+        if module.get("kind") not in ("general", "game", "backend", "runtime"):
+            error(path, "module.kind must be general, game, backend, or runtime")
         for field in ("name", "version", "description"):
             if not isinstance(module.get(field), str) or not module[field].strip():
                 error(path, f"module.{field} must be nonempty text")
@@ -100,6 +101,10 @@ def main():
             error(path, "module.dependencies must be a list of module IDs")
             deps = []
         dependencies[ident] = deps
+        payload_hashes = module.get("payloadSha256", {})
+        if not isinstance(payload_hashes, dict):
+            error(path, "module.payloadSha256 must be a dictionary")
+            payload_hashes = {}
         payloads = module.get("payloadFiles", [])
         if not isinstance(payloads, list) or any(not isinstance(p, str) for p in payloads):
             error(path, "module.payloadFiles must be a list of paths")
@@ -108,8 +113,19 @@ def main():
                 p = PurePosixPath(payload)
                 if (not payload or "\\" in payload or p.is_absolute() or ".." in p.parts):
                     error(path, f"invalid payload path: {payload!r}")
-                elif not (root / path).parent.joinpath("payload", payload).is_file():
-                    error(path, f"missing payload file: payload/{payload}")
+                else:
+                    source = (root / path).parent.joinpath("payload", payload)
+                    if not source.is_file():
+                        error(path, f"missing payload file: payload/{payload}")
+                        continue
+                    expected = payload_hashes.get(payload)
+                    if module.get("kind") in ("backend", "runtime") and not expected:
+                        error(path, f"backend/runtime payload has no SHA-256: {payload}")
+                    if expected:
+                        if not isinstance(expected, str) or len(expected) != 64:
+                            error(path, f"invalid SHA-256: {payload}")
+                        elif hashlib.sha256(source.read_bytes()).hexdigest().lower() != expected.lower():
+                            error(path, f"payload SHA-256 mismatch: {payload}")
 
     for ident, deps in dependencies.items():
         for dep in deps:

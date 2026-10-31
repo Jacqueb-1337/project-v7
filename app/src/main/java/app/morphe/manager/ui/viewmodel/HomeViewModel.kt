@@ -1874,11 +1874,14 @@ class HomeViewModel(
             } ?: return@withContext false
 
             val catalog = Pv7CatalogLoader(app).load(refreshRemote = false)
+            val prior = runCatching { Pv7EmbeddedGuest.readLock(apkFile) }.getOrNull()
             val target = Pv7AppTarget(
-                packageId = selectedApp.packageName,
-                versionName = selectedApp.version,
-                abis = Pv7EngineDetector.detectAbis(apkFile),
-                engine = runCatching { Pv7EngineDetector.detect(apkFile) }.getOrNull()
+                packageId = prior?.guestPackageName ?: selectedApp.packageName,
+                versionName = prior?.guestVersionName ?: selectedApp.version,
+                abis = prior?.guestAbis?.toSet() ?: Pv7EngineDetector.detectAbis(apkFile),
+                engine = prior?.guestEngineId?.let {
+                    Pv7EngineFingerprint(it, prior.guestEngineVersion, "PV7 embedded original APK")
+                } ?: runCatching { Pv7EngineDetector.detect(apkFile) }.getOrNull()
             )
             Pv7CatalogResolver.resolve(
                 target = target,
@@ -2421,7 +2424,7 @@ class HomeViewModel(
 
         viewModelScope.launch {
             val sourceContext = withContext(Dispatchers.IO) {
-                val catalog = Pv7CatalogLoader(app).load(refreshRemote = false)
+                val catalog = Pv7CatalogLoader(app).load(refreshRemote = true)
                 val apkFile = when (selectedApp) {
                     is SelectedApp.Local -> selectedApp.file
                     is SelectedApp.Installed -> runCatching {
@@ -2433,11 +2436,16 @@ class HomeViewModel(
                 val sourceDisplayName = packageInfo?.let { with(pm) { it.label() } }
                     ?: apps.pv7SupportedApp(selectedApp.packageName)?.displayName
                     ?: selectedApp.packageName
+                val prior = apkFile?.let {
+                    runCatching { Pv7EmbeddedGuest.readLock(it) }.getOrNull()
+                }
                 val target = Pv7AppTarget(
-                    packageId = selectedApp.packageName,
-                    versionName = selectedApp.version,
-                    abis = apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
-                    engine = apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
+                    packageId = prior?.guestPackageName ?: selectedApp.packageName,
+                    versionName = prior?.guestVersionName ?: selectedApp.version,
+                    abis = prior?.guestAbis?.toSet() ?: apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
+                    engine = prior?.guestEngineId?.let {
+                        Pv7EngineFingerprint(it, prior.guestEngineVersion, "PV7 embedded original APK")
+                    } ?: apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
                 )
                 Triple(catalog, target, sourceDisplayName)
             }
@@ -2464,13 +2472,7 @@ class HomeViewModel(
                 return@launch
             }
 
-            val explicitModuleIds = if (resolution.profile != null) {
-                resolution.profile.recommendedModules.toSet()
-            } else {
-                resolution.visibleModules
-                    .filter { it.badge == Pv7ModuleBadge.ENGINE_SUGGESTED && it.selected }
-                    .mapTo(linkedSetOf()) { it.manifest.id }
-            }
+            val explicitModuleIds = resolution.selectedModuleIds
 
             pv7PendingRun = Pv7PendingPatchRun(
                 selectedApp = selectedApp,
@@ -2484,6 +2486,7 @@ class HomeViewModel(
                 optionValues = ensurePv7OptionDefaults(
                     resolution = resolution,
                     selectedApp = selectedApp,
+                    target = target,
                     sourceDisplayName = sourceDisplayName,
                     existing = emptyMap()
                 ),
@@ -2527,7 +2530,7 @@ class HomeViewModel(
                 explicitModuleIds = resolution.selectedModuleIds,
                 catalogRepository = repo,
                 optionValues = ensurePv7OptionDefaults(
-                    resolution, state.selectedApp, state.sourceDisplayName, emptyMap()
+                    resolution, state.selectedApp, state.target, state.sourceDisplayName, emptyMap()
                 )
             )
         }
@@ -2536,6 +2539,7 @@ class HomeViewModel(
     private fun ensurePv7OptionDefaults(
         resolution: Pv7ResolutionPlan,
         selectedApp: SelectedApp,
+        target: Pv7AppTarget,
         sourceDisplayName: String,
         existing: Map<String, String>
     ): Map<String, String> {
@@ -2547,9 +2551,11 @@ class HomeViewModel(
                 val key = pv7OptionKey(row.manifest.id, optionKey)
                 if (!values[key].isNullOrBlank()) continue
                 when (operation.type) {
-                    "wrapper.setPackageId" -> values[key] = selectedApp.packageName + ".pv7"
+                    "wrapper.setPackageId" -> values[key] =
+                        if (selectedApp.packageName != target.packageId) selectedApp.packageName
+                        else target.packageId + ".pv7"
                     "wrapper.setLauncherLabel" -> values[key] = sourceDisplayName
-                    "guest.setPackageId" -> values[key] = selectedApp.packageName
+                    "guest.setPackageId" -> values[key] = target.packageId
                     "wrapper.setLauncherIcon" -> values.putIfAbsent(key, "")
                 }
             }
@@ -2616,6 +2622,7 @@ class HomeViewModel(
             optionValues = ensurePv7OptionDefaults(
                 resolution = resolution,
                 selectedApp = state.selectedApp,
+                target = state.target,
                 sourceDisplayName = state.sourceDisplayName,
                 existing = state.optionValues
             )

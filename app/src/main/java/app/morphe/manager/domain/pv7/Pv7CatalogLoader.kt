@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 @Serializable
 data class Pv7SupportedApp(
@@ -80,6 +81,20 @@ class Pv7CatalogLoader(
         return loadBundled()
     }
 
+    /** Lightweight update check: only the index and manifests, never native payloads. */
+    fun loadRemoteModuleVersions(): List<Pv7ModuleManifest> {
+        val base = Pv7CatalogRepository.baseUrl(repository)
+        val index = json.decodeFromString<Pv7CatalogIndex>(stripBom(fetchText(base + "index.json")))
+        require(index.schemaVersion == 1) { "Unsupported PV7 catalog schema" }
+        return index.modules.map { path ->
+            require(path.startsWith("modules/") && path.endsWith("/module.json") &&
+                path.split('/').none { it == ".." || it.isBlank() }) {
+                "Unsafe module path in remote catalog"
+            }
+            json.decodeFromString<Pv7ModuleManifest>(stripBom(fetchText(base + path)))
+        }
+    }
+
     private fun refreshRemoteCache() {
         val baseUrl = Pv7CatalogRepository.baseUrl(repository)
         val indexText = fetchText(baseUrl + "index.json")
@@ -103,7 +118,21 @@ class Pv7CatalogLoader(
             module.payloadFiles.forEach { relative ->
                 val payloadUrl = baseUrl + moduleDir + "/payload/" + relative
                 val payloadPath = moduleDir + "/payload/" + relative
-                writeBytes(safeChild(tempRoot, payloadPath), fetchBytes(payloadUrl))
+                val bytes = fetchBytes(payloadUrl)
+                val requiredHash = module.payloadSha256[relative]
+                if (module.kind in setOf(Pv7ModuleKind.BACKEND, Pv7ModuleKind.RUNTIME)) {
+                    require(!requiredHash.isNullOrBlank()) {
+                        "Executable module " + module.id + " has no SHA-256 for " + relative
+                    }
+                }
+                if (!requiredHash.isNullOrBlank()) {
+                    val actualHash = MessageDigest.getInstance("SHA-256")
+                        .digest(bytes).joinToString("") { "%02x".format(it) }
+                    require(actualHash.equals(requiredHash, ignoreCase = true)) {
+                        "PV7 module payload checksum mismatch: " + module.id + "/" + relative
+                    }
+                }
+                writeBytes(safeChild(tempRoot, payloadPath), bytes)
             }
         }
 

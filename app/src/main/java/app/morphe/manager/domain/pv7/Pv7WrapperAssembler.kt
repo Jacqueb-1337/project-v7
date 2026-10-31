@@ -120,7 +120,8 @@ class Pv7WrapperAssembler {
         outputApk: File,
         config: Pv7WrapperConfig,
         assets: AssetManager,
-        selectedModules: List<Pv7ModuleManifest>
+        selectedModules: List<Pv7ModuleManifest>,
+        originalGuestApk: File? = null
     ) {
         if (!templateApk.isFile) {
             throw IOException("PV7 host template is missing: " + templateApk)
@@ -150,6 +151,18 @@ class Pv7WrapperAssembler {
             replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
             addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
+
+            if (originalGuestApk != null) {
+                if (!originalGuestApk.isFile) throw IOException("Original guest APK is missing")
+                replaceFile(module, originalGuestApk, Pv7EmbeddedGuest.GUEST_PATH)
+            }
+            val lockFile = File(guestPayload.root, "generated/module-lock.json")
+            lockFile.parentFile?.mkdirs()
+            lockFile.writeText(
+                Pv7EmbeddedGuest.encode(Pv7EmbeddedGuest.lockFor(config, selectedModules, originalGuestApk)),
+                Charsets.UTF_8
+            )
+            replaceFile(module, lockFile, Pv7EmbeddedGuest.LOCK_PATH)
 
             applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root, config.versionCode)
 

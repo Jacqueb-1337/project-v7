@@ -11,6 +11,8 @@ import androidx.work.*
 import app.morphe.manager.BuildConfig
 import app.morphe.manager.R
 import app.morphe.manager.domain.manager.PreferencesManager
+import app.morphe.manager.domain.pv7.Pv7CatalogLoader
+import app.morphe.manager.domain.pv7.Pv7ModuleUpdateStore
 import app.morphe.manager.domain.repository.ManagerUpdateRepository
 import app.morphe.manager.domain.repository.PatchBundleRepository
 import app.morphe.manager.util.UpdateNotificationManager
@@ -80,6 +82,7 @@ class UpdateCheckWorker(
         return try {
             checkForManagerUpdate()
             checkForBundleUpdate()
+            checkForPv7ModuleUpdates()
             Log.d(tag, "UpdateCheckWorker: background update check completed")
             Result.success()
         } catch (e: Exception) {
@@ -123,9 +126,42 @@ class UpdateCheckWorker(
         }
     }
 
+    /** Query only version metadata; never download native modules during a background check. */
+    private fun checkForPv7ModuleUpdates() {
+        val store = Pv7ModuleUpdateStore(applicationContext)
+        if (store.builds().isEmpty()) return
+        runCatching {
+            val latest = Pv7CatalogLoader(applicationContext).loadRemoteModuleVersions()
+            val updates = store.available(latest)
+            if (updates.isNotEmpty()) {
+                val count = updates.values.sumOf { it.size }
+                Log.i(tag, "PV7 module updates available for " + updates.size + " wrappers")
+                notificationManager.showPv7ModuleUpdatesNotification(count, updates.size)
+            }
+        }.onFailure { error ->
+            Log.w(tag, "PV7 module update check unavailable", error)
+        }
+    }
+
     companion object {
         /** Unique name used to identify the periodic work in WorkManager */
         const val WORK_NAME = "morphe_update_check"
+
+        /** Re-check PV7 compatibility catalog on an app cold start. */
+        fun checkOnOpen(context: Context) {
+            if (Pv7ModuleUpdateStore(context).builds().isEmpty()) return
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val request = OneTimeWorkRequestBuilder<UpdateCheckWorker>()
+                .setConstraints(constraints)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "pv7_module_update_check_on_open",
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+        }
 
         /**
          * Schedule (or reschedule) the periodic update check with the given [interval].

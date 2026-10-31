@@ -191,6 +191,18 @@ class UpdateNotificationManager(private val context: Context) {
      * Uses IMPORTANCE_HIGH so the device wakes from Doze. Tapping the notification
      * opens [MainActivity] and triggers an update check via [EXTRA_TRIGGER_UPDATE_CHECK].
      */
+    /** Independently versioned PV7 backends/runtimes have pending wrapper rebuilds. */
+    fun showPv7ModuleUpdatesNotification(moduleCount: Int, wrapperCount: Int) {
+        postNotification(
+            channelId = CHANNEL_PATCH_UPDATES,
+            titleRes = R.string.pv7_module_updates_title,
+            contentText = context.getString(
+                R.string.pv7_module_updates_message, moduleCount, wrapperCount
+            ),
+            notificationId = NOTIFICATION_ID_PV7_MODULE_UPDATES
+        )
+    }
+
     private fun postNotification(
         channelId: String,
         titleRes: Int,
@@ -275,6 +287,7 @@ class UpdateNotificationManager(private val context: Context) {
         private const val NOTIFICATION_ID_MANAGER_UPDATE = 2001
         private const val NOTIFICATION_ID_BUNDLE_UPDATE  = 2002
         private const val NOTIFICATION_ID_BATCH_RESULT   = 2005
+        private const val NOTIFICATION_ID_PV7_MODULE_UPDATES = 2006
 
         private const val REQUEST_CODE_UPDATE_CHECK = 1
         private const val REQUEST_CODE_BATCH_RESULT = 2
