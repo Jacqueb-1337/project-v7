@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-23T23:03:11",
-  "description": "## [1.37.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.1...v1.37.2) (2026-11-23)\n\n\n### Bug Fixes\n\n* **cnr:** reduce CPU during Unity frame waits ([05b7887](https://github.com/Jacqueb-1337/project-v7/commit/05b78877273b35cecbe0c7faebe918f857ef1050))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.2/project-v7-patcher-1.37.2.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.2/project-v7-patcher-1.37.2.apk.asc",
-  "version": "1.37.2"
+  "created_at": "2026-11-23T23:32:48",
+  "description": "## [1.37.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.2...v1.37.3) (2026-11-23)\n\n\n### Bug Fixes\n\n* **pv7:** preserve guest assets and restore mod bootstrap ([587a7fa](https://github.com/Jacqueb-1337/project-v7/commit/587a7fa11828a806dbd7fb4f63ffbad7aa1b12a7))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.3/project-v7-patcher-1.37.3.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.3/project-v7-patcher-1.37.3.apk.asc",
+  "version": "1.37.3"
 }
