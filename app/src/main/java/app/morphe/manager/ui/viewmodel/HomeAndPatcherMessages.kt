@@ -5,7 +5,6 @@ import android.util.Log
 import app.morphe.manager.R
 import app.morphe.manager.ui.viewmodel.HomeAndPatcherMessages.getHomeMessage
 import app.morphe.manager.util.tag
-import java.util.Calendar
 import kotlin.random.Random
 
 /**
@@ -67,51 +66,58 @@ object HomeAndPatcherMessages {
     }
 
     /**
-     * Witty greeting message. Picks from a time-of-day bucket so the tone matches
-     * when the user opens the app.
+     * Project V7 greeting message. The entire pool is available at any hour.
      */
     fun getHomeMessage(context: Context): Int {
         return homeGreetingMessage ?: run {
-            // home_greeting_1 is always shown first on a new installation.
-            // All other strings in the active time bucket are randomly shown
-            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            val messages = listOf(R.string.home_greeting_1) + when (hour) {
-                in 5..11 -> listOf(
-                    R.string.home_greeting_4,
-                    R.string.home_greeting_7,
-                    R.string.home_greeting_10,
-                    R.string.home_greeting_morning_1,
-                    R.string.home_greeting_morning_2,
-                )
-                in 12..16 -> listOf(
-                    R.string.home_greeting_2,
-                    R.string.home_greeting_8,
-                    R.string.home_greeting_afternoon_1,
-                    R.string.home_greeting_afternoon_2,
-                    R.string.home_greeting_afternoon_3,
-                )
-                in 17..21 -> listOf(
-                    R.string.home_greeting_3,
-                    R.string.home_greeting_6,
-                    R.string.home_greeting_evening_1,
-                    R.string.home_greeting_evening_2,
-                    R.string.home_greeting_evening_3,
-                )
-                in 22..23 -> listOf(
-                    R.string.home_greeting_5,
-                    R.string.home_greeting_9,
-                    R.string.home_greeting_late_night_1,
-                    R.string.home_greeting_late_night_2,
-                    R.string.home_greeting_late_night_3,
-                )
-                else -> listOf( // 0..4
-                    R.string.home_greeting_super_late_1,
-                    R.string.home_greeting_super_late_2,
-                    R.string.home_greeting_super_late_3,
-                    R.string.home_greeting_super_late_4,
-                    R.string.home_greeting_super_late_5,
-                )
-            }
+            // Keep the first-run prompt, then shuffle the Project V7 greetings.
+            val messages = listOf(
+                R.string.home_greeting_1,
+                R.string.pv7_home_greeting_1,
+                R.string.pv7_home_greeting_2,
+                R.string.pv7_home_greeting_3,
+                R.string.pv7_home_greeting_4,
+                R.string.pv7_home_greeting_5,
+                R.string.pv7_home_greeting_6,
+                R.string.pv7_home_greeting_7,
+                R.string.pv7_home_greeting_8,
+                R.string.pv7_home_greeting_9,
+                R.string.pv7_home_greeting_10,
+                R.string.pv7_home_greeting_11,
+                R.string.pv7_home_greeting_12,
+                R.string.pv7_home_greeting_13,
+                R.string.pv7_home_greeting_14,
+                R.string.pv7_home_greeting_15,
+                R.string.pv7_home_greeting_16,
+                R.string.pv7_home_greeting_17,
+                R.string.pv7_home_greeting_18,
+                R.string.pv7_home_greeting_19,
+                R.string.pv7_home_greeting_20,
+                R.string.pv7_home_greeting_21,
+                R.string.pv7_home_greeting_22,
+                R.string.pv7_home_greeting_23,
+                R.string.pv7_home_greeting_24,
+                R.string.pv7_home_greeting_25,
+                R.string.pv7_home_greeting_26,
+                R.string.pv7_home_greeting_27,
+                R.string.pv7_home_greeting_28,
+                R.string.pv7_home_greeting_29,
+                R.string.pv7_home_greeting_30,
+                R.string.pv7_home_greeting_31,
+                R.string.pv7_home_greeting_32,
+                R.string.pv7_home_greeting_33,
+                R.string.pv7_home_greeting_34,
+                R.string.pv7_home_greeting_35,
+                R.string.pv7_home_greeting_36,
+                R.string.pv7_home_greeting_37,
+                R.string.pv7_home_greeting_38,
+                R.string.pv7_home_greeting_39,
+                R.string.pv7_home_greeting_40,
+                R.string.pv7_home_greeting_41,
+                R.string.pv7_home_greeting_42,
+                R.string.pv7_home_greeting_43,
+                R.string.pv7_home_greeting_44,
+            )
             // Use different seed on each install, but keep the same seed across sessions
             updateValues(context, homeGreetingMessageIndex, homeGreetingMessageSeed, messages).also {
                 homeGreetingMessage = it

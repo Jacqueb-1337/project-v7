@@ -1,0 +1,47 @@
+<resources>
+    <!-- Project V7 home greetings. English copy until localized. -->
+    <string name="pv7_home_greeting_1" translatable="false">Intended behavior is overrated</string>
+    <string name="pv7_home_greeting_2" translatable="false">Somewhere, a developer is confused.</string>
+    <string name="pv7_home_greeting_3" translatable="false">Nothing a few patches can\'t fix.</string>
+    <string name="pv7_home_greeting_4" translatable="false">Obsolete is a matter of perspective.</string>
+    <string name="pv7_home_greeting_5" translatable="false">Thousands of coffee breaks later...</string>
+    <string name="pv7_home_greeting_6" translatable="false">It wasn\'t supposed to work. It does.</string>
+    <string name="pv7_home_greeting_7" translatable="false">Technically, nobody said we couldn\'t.</string>
+    <string name="pv7_home_greeting_8" translatable="false">Compatibility through stubbornness.</string>
+    <string name="pv7_home_greeting_9" translatable="false">Discontinued, but not defeated.</string>
+    <string name="pv7_home_greeting_10" translatable="false">Deprecated doesn\'t mean dead.</string>
+    <string name="pv7_home_greeting_11" translatable="false">A perfectly unreasonable solution.</string>
+    <string name="pv7_home_greeting_12" translatable="false">Against all technical advice.</string>
+    <string name="pv7_home_greeting_13" translatable="false">It worked eventually.</string>
+    <string name="pv7_home_greeting_14" translatable="false">Probably not what the developers intended.</string>
+    <string name="pv7_home_greeting_15" translatable="false">Built on questionable assumptions.</string>
+    <string name="pv7_home_greeting_16" translatable="false">Everything is compatible with enough patience.</string>
+    <string name="pv7_home_greeting_17" translatable="false">The documentation was more of a suggestion.</string>
+    <string name="pv7_home_greeting_18" translatable="false">It gets complicated from here.</string>
+    <string name="pv7_home_greeting_19" translatable="false">Old binaries, new tricks.</string>
+    <string name="pv7_home_greeting_20" translatable="false">A little more permanent than a temporary fix.</string>
+    <string name="pv7_home_greeting_21" translatable="false">Somehow, this is the stable build.</string>
+    <string name="pv7_home_greeting_22" translatable="false">An unreasonable amount of debugging later...</string>
+    <string name="pv7_home_greeting_23" translatable="false">No source code? Minor inconvenience.</string>
+    <string name="pv7_home_greeting_24" translatable="false">Turns out, it wasn\'t impossible.</string>
+    <string name="pv7_home_greeting_25" translatable="false">Several bad ideas make one good patch.</string>
+    <string name="pv7_home_greeting_26" translatable="false">Because starting over would be too easy.</string>
+    <string name="pv7_home_greeting_27" translatable="false">The original developers have left the chat.</string>
+    <string name="pv7_home_greeting_28" translatable="false">A surprisingly functional experiment.</string>
+    <string name="pv7_home_greeting_29" translatable="false">Making unsupported software feel supported.</string>
+    <string name="pv7_home_greeting_30" translatable="false">Another problem for future me.</string>
+    <string name="pv7_home_greeting_31" translatable="false">Years of work. Seconds to install.</string>
+    <string name="pv7_home_greeting_32" translatable="false">All this because someone said it wouldn\'t work.</string>
+    <string name="pv7_home_greeting_33" translatable="false">The software equivalent of duct tape.</string>
+    <string name="pv7_home_greeting_34" translatable="false">Probably voids something.</string>
+    <string name="pv7_home_greeting_35" translatable="false">Making yesterday\'s mistakes run on today\'s hardware.</string>
+    <string name="pv7_home_greeting_36" translatable="false">Not broken. Just misunderstood.</string>
+    <string name="pv7_home_greeting_37" translatable="false">A solution in search of documentation.</string>
+    <string name="pv7_home_greeting_38" translatable="false">A few thousand commits and counting.</string>
+    <string name="pv7_home_greeting_39" translatable="false">It started as a small experiment.</string>
+    <string name="pv7_home_greeting_40" translatable="false">Nothing about this was necessary.</string>
+    <string name="pv7_home_greeting_41" translatable="false">The lengths we go to for old software.</string>
+    <string name="pv7_home_greeting_42" translatable="false">Running on caffeine and questionable logic.</string>
+    <string name="pv7_home_greeting_43" translatable="false">Somewhere between engineering and witchcraft.</string>
+    <string name="pv7_home_greeting_44" translatable="false">Software archaeology in progress.</string>
+</resources>
