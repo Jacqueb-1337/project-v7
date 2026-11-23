@@ -56,6 +56,13 @@ class LocalCnrAssemblerValidationTest {
 
         assertTrue(output.isFile)
         ZipFile(output).use { zip ->
+            ZipFile(input).use { original ->
+                original.getEntry("assets/CNRModManager.dll")?.let { source ->
+                    val target = requireNotNull(zip.getEntry(source.name))
+                    assertTrue(original.getInputStream(source).use { it.readBytes() }
+                        .contentEquals(zip.getInputStream(target).use { it.readBytes() }))
+                }
+            }
             assertTrue(zip.getEntry("assets/bootstrap/CNRModManager.dll") != null)
             assertTrue(zip.getEntry("assets/bootstrap/CNRModManager.dll.sha256") != null)
             val host = zip.getInputStream(zip.getEntry("assets/pv7/host.properties"))

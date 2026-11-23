@@ -87,15 +87,25 @@ class Pv7WrapperAssembler {
                 throw IOException("APK has no legacy Unity assets/bin/Data payload")
             }
 
-            dataEntries.forEach { entry ->
-                val relative = entry.name.removePrefix("assets/bin/Data/")
-                if (relative.isBlank()) return@forEach
-                val target = safeChild(dataDir, relative)
-                target.parentFile?.mkdirs()
-                zip.getInputStream(entry).use { input ->
-                    FileOutputStream(target).use(input::copyTo)
+            // Preserve guest assets at their original APK paths. The host's
+            // private namespaces must never be supplied by an untrusted guest.
+            val assetRoot = File(stagingRoot, "assets")
+            zip.entries().asSequence()
+                .filterNot { it.isDirectory }
+                .filter { it.name.startsWith("assets/") }
+                .filterNot { entry ->
+                    val relative = entry.name.removePrefix("assets/")
+                    relative.substringBefore('/') in setOf("pv7", "guest", "bootstrap")
                 }
-            }
+                .forEach { entry ->
+                    val relative = entry.name.removePrefix("assets/")
+                    if (relative.isBlank()) return@forEach
+                    val target = safeChild(assetRoot, relative)
+                    target.parentFile?.mkdirs()
+                    zip.getInputStream(entry).use { input ->
+                        FileOutputStream(target).use(input::copyTo)
+                    }
+                }
         }
 
         val managed = File(dataDir, "Managed")
@@ -149,7 +159,17 @@ class Pv7WrapperAssembler {
             replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
             replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
-            addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
+            // The staged asset root contains both Unity Data and other original
+            // guest assets, such as a managed bootstrap at assets/CNRModManager.dll.
+            val guestAssets = File(guestPayload.root, "assets")
+            guestAssets.listFiles().orEmpty()
+                .filterNot { it.name in setOf("pv7", "guest", "bootstrap") }
+                .sortedBy { it.name }
+                .forEach { asset ->
+                    val apkPath = "assets/" + asset.name
+                    if (asset.isDirectory) addDirectory(module, asset, apkPath)
+                    else if (asset.isFile) replaceFile(module, asset, apkPath)
+                }
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
 
             applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root, config.versionCode)

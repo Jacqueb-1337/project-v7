@@ -7,6 +7,7 @@ import kotlinx.serialization.json.put
 import sun.misc.Unsafe
 import java.io.File
 import java.nio.file.Files
+import java.util.zip.ZipFile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -37,6 +38,10 @@ class Pv7WrapperAssemblerTest {
             }
             val libMono = File(guestRoot, "assets/guest/libmono.so").apply {
                 writeBytes(byteArrayOf(1))
+            }
+
+            val originalModAsset = File(guestRoot, "assets/CNRModManager.dll").apply {
+                writeBytes(byteArrayOf(1, 2, 3, 4))
             }
 
             val module = Pv7ModuleManifest(
@@ -76,6 +81,11 @@ class Pv7WrapperAssemblerTest {
             )
 
             assertTrue(output.isFile)
+            ZipFile(output).use { zip ->
+                val entry = assertNotNull(zip.getEntry("assets/CNRModManager.dll"))
+                assertTrue(zip.getInputStream(entry).use { it.readBytes() }
+                    .contentEquals(originalModAsset.readBytes()))
+            }
             val apk = ApkModule.loadApkFile(output)
             try {
                 val manifest = apk.androidManifestBlock

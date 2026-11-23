@@ -12,7 +12,7 @@ CNR_DIR = CATALOG / "modules/games/com.joydo.minestrikenew/cnr-compat"
 MANIFEST = CNR_DIR / "module.json"
 PROFILE = CATALOG / "profiles/com.joydo.minestrikenew/3.0.2.json"
 PAYLOAD = CNR_DIR / "payload"
-EXPECTED_HOST = "0396656c190c8f06fe195c5336453ab4ee56b5e3d4ccfb481af408ef02cd7ae9"
+EXPECTED_HOST = "73e227106acf659709f92b4b2d75dc008b0b43e3a624f08e89f1f1e82ca5dad6"
 EXPECTED_MODS = ("CNRModManager", "CNRMod", "CNRSettingsMod", "GraphicsSettings")
 
 def digest(data: bytes) -> str:
@@ -36,7 +36,7 @@ def main() -> None:
         "core-compat", "unity-4.6-compat", "cnr-compat"]
     assert all(x in modules for x in profile["recommendedModules"])
     assert all(x in modules for x in cnr["dependencies"])
-    assert cnr["version"] == "1.0.9"
+    assert cnr["version"] == "1.0.10"
     assert "lib/arm64-v8a/libpv7host.so.pv7z" in cnr["payloadFiles"]
     for f in cnr["payloadFiles"]:
         assert (PAYLOAD / f).is_file(), f"Missing payload: {f}"
@@ -58,6 +58,9 @@ def main() -> None:
 
     template = ROOT / "app/src/main/assets/pv7/templates/pv7-host-template.apk"
     with zipfile.ZipFile(template) as apk:
+        primary = apk.read("classes.dex")
+        for marker in (b"seedBootstrapFiles", b"Seeded bootstrap", b"Bootstrap hash mismatch"):
+            assert marker in primary, f"Host template missing bootstrap code: {marker!r}"
         generic = apk.read("lib/arm64-v8a/libpv7host.so")
         assert digest(generic) != EXPECTED_HOST
         assert any(
