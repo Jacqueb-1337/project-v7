@@ -1,0 +1,124 @@
+﻿name: Recover signed Project V7 release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag whose signed APK is missing from GitHub Releases
+        required: true
+        type: string
+        default: v1.37.1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pv7-production-release
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Rebuild, verify and publish an existing signed PV7 tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact existing release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Reject unsafe or already-published tags
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Only existing version tags are supported"; exit 1; }
+          git tag --list "$TAG" | grep -Fxq "$TAG" || { echo "::error::Tag not found"; exit 1; }
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release already exists; refusing to replace a published APK."
+            exit 1
+          fi
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Restore Android release keystore
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+        run: |
+          set -euo pipefail
+          [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASSWORD" && -n "$KEYSTORE_ENTRY_ALIAS" ]] || exit 1
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > app/keystore.jks
+          keytool -list -keystore app/keystore.jks -storepass:env KEYSTORE_PASSWORD -alias "$KEYSTORE_ENTRY_ALIAS" >/dev/null
+
+      - name: Cache Gradle
+        uses: burrunan/gradle-cache-action@v3
+
+      - name: Import existing release GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Rebuild and sign with the established PV7 release script
+        shell: bash
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+          KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/prepare-release.sh "$VERSION"
+
+      - name: Verify packaged CNR preset and exact native host
+        shell: bash
+        run: |
+          set -euo pipefail
+          export APK="app/build/outputs/apk/release/project-v7-patcher-${VERSION}.apk"
+          python3 - <<'PY'
+          import os, zipfile, gzip, json, hashlib
+          expected="0396656c190c8f06fe195c5336453ab4ee56b5e3d4ccfb481af408ef02cd7ae9"
+          path=os.environ["APK"]
+          with zipfile.ZipFile(path) as z:
+              root="assets/modules/games/com.joydo.minestrikenew/cnr-compat/"
+              m=json.loads(z.read(root+"module.json"))
+              assert m["version"] == "1.0.9", m["version"]
+              native=root+"payload/lib/arm64-v8a/libpv7host.so.pv7z"
+              assert native in z.namelist(), "Android asset packaging renamed the compressed native payload"
+              raw=gzip.decompress(z.read(native))
+              assert hashlib.sha256(raw).hexdigest()==expected, "Native build differs from verified Shipment build"
+              for mod in ("CNRMod","CNRModManager","CNRSettingsMod","GraphicsSettings"):
+                  assert root+"payload/assets/bootstrap/"+mod+".dll" in z.namelist(), mod
+              profile=json.loads(z.read("assets/profiles/com.joydo.minestrikenew/3.0.2.json"))
+              assert profile["recommendedModules"] == ["core-compat","unity-4.6-compat","cnr-compat"]
+          print("Verified CNR 1.0.9 with exact known-good ARM64 native host and all managed mods.")
+          PY
+          gpg --verify "$APK.asc" "$APK"
+
+      - name: Publish the missing signed release without changing its tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/project-v7-patcher-${VERSION}.apk"
+          cat > /tmp/pv7-recovery-notes.txt <<'EOF'
+          Recovered signed Project V7 Patcher release after the original semantic-release Git notes push failed.
+
+          Includes CNR Compatibility 1.0.9, the verified cooperative-wait ARM64 native host (preserving Shipment MW stability), generic Unity 4.6 compatibility recommendations, and the current pinned CNR managed mod set.
+
+          The APK was rebuilt from this exact existing release tag, verified against the known-good CNR native SHA-256, and signed with the established Android and GPG release keys.
+          EOF
+          gh release create "$TAG" "$APK" "$APK.asc" --repo "$GITHUB_REPOSITORY" --verify-tag --latest --title "Project V7 Patcher $TAG" --notes-file /tmp/pv7-recovery-notes.txt
