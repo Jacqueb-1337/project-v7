@@ -50,7 +50,7 @@ def main() -> None:
 
     verified_host = CNR_MODULE / "payload/lib/arm64-v8a/libpv7host.so.pv7z"
     if verified_host.is_file():
-        expected = "0396656c190c8f06fe195c5336453ab4ee56b5e3d4ccfb481af408ef02cd7ae9"
+        expected = "73e227106acf659709f92b4b2d75dc008b0b43e3a624f08e89f1f1e82ca5dad6"
         unpacked = gzip.decompress(verified_host.read_bytes())
         if hashlib.sha256(unpacked).hexdigest() != expected:
             raise ValueError("CNR ARM64 host no longer matches the on-device verified PV7 binary")

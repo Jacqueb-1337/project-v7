@@ -1,9 +1,9 @@
 {
   "id": "cnr-compat",
   "name": "CNR64 Compatibility",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "kind": "game",
-  "description": "CNR binary-specific Unity 4.6.1f1 compatibility, verified ARM64 cooperative-wait host, and pinned managed CNR mod bootstrap without overwriting custom installations.",
+  "description": "CNR 3.0.2 compatibility with cooperative Unity frame sleep and the managed mod bootstrap.",
   "targets": {
     "packageIds": [
       "com.joydo.minestrikenew"
