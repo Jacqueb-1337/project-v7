@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.zip.GZIPInputStream
 import java.util.zip.ZipFile
 
 data class Pv7WrapperConfig(
@@ -314,7 +315,7 @@ class Pv7WrapperAssembler {
                     if (relative == COMPAT_PROPERTIES_APK_PATH) {
                         compatLayers += source.readText(Charsets.UTF_8)
                     } else {
-                        replaceFile(apk, source, relative)
+                        overlayPayloadFile(apk, source, relative, scratchRoot, module.id)
                     }
                 }
                 return@forEach
@@ -333,7 +334,7 @@ class Pv7WrapperAssembler {
                     if (relative == COMPAT_PROPERTIES_APK_PATH) {
                         compatLayers += target.readText(Charsets.UTF_8)
                     } else {
-                        replaceFile(apk, target, relative)
+                        overlayPayloadFile(apk, target, relative, scratchRoot, module.id)
                     }
                 }
                 return@forEach
@@ -362,6 +363,29 @@ class Pv7WrapperAssembler {
             output.writeText(merged, Charsets.UTF_8)
             replaceFile(apk, output, COMPAT_PROPERTIES_APK_PATH)
         }
+    }
+
+    // Native libraries are distributed compressed in catalog modules to keep
+    // remote refreshes small. The decompressed entry remains byte-identical to
+    // the verified .so before it replaces the template's native library.
+    private fun overlayPayloadFile(
+        apk: ApkModule,
+        source: File,
+        relative: String,
+        scratchRoot: File,
+        moduleId: String
+    ) {
+        if (!relative.endsWith(".so.gz")) {
+            replaceFile(apk, source, relative)
+            return
+        }
+        val apkPath = relative.removeSuffix(".gz")
+        val target = safeChild(File(scratchRoot, "inflated-native/" + moduleId), apkPath)
+        target.parentFile?.mkdirs()
+        GZIPInputStream(source.inputStream()).use { input ->
+            target.outputStream().use(input::copyTo)
+        }
+        replaceFile(apk, target, apkPath)
     }
 
     private fun overlayAssetNode(
