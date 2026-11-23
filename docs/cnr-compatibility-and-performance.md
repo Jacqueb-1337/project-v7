@@ -20,7 +20,7 @@
 pins versions and checks each canonical and versioned release DLL has identical SHA256.
 `scripts/validate_cnr_recommended.py` checks the catalog, dependencies, installed bootstrap policies, native host bytes and the generic template separation.
 
-The CNR host is stored as `lib/arm64-v8a/libpv7host.so.gz` (11,370,583 bytes, decompressed 55,681,344 bytes). `Pv7WrapperAssembler` inflates this file when chosen and writes it as `lib/arm64-v8a/libpv7host.so`. Decompressed SHA256:
+The CNR host is stored as `lib/arm64-v8a/libpv7host.so.pv7z` (11,370,583 bytes, decompressed 55,681,344 bytes). `Pv7WrapperAssembler` inflates this file when chosen and writes it as `lib/arm64-v8a/libpv7host.so`. Decompressed SHA256:
 `0396656c190c8f06fe195c5336453ab4ee56b5e3d4ccfb481af408ef02cd7ae9`.
 
 This exact native SHA256 was checked against the successful Project V7 build installed on the user's phone on November 23, 2026. It contains the cooperative `render-worker-wait` and 120-second no-progress guard that prevented Shipment MW's large CNRMod DLC preparation from stopping the guest.
