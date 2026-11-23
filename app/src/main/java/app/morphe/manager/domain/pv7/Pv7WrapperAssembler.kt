@@ -155,6 +155,7 @@ class Pv7WrapperAssembler {
                     }
                 }
             applyDocumentsProviders(manifest, selectedModules, config.packageName)
+            applyGuestRecoveryActivity(manifest)
 
             replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
@@ -185,6 +186,19 @@ class Pv7WrapperAssembler {
         } finally {
             runCatching { module.close() }
         }
+    }
+
+    private fun applyGuestRecoveryActivity(manifest: AndroidManifestBlock) {
+        val name = "app.projectv7.wrapper.GuestRestartActivity"
+        if (manifest.listApplicationElementsByTag("activity").any {
+                AndroidManifestBlock.getAndroidNameValue(it) == name
+            }) return
+        val activity = manifest.orCreateApplicationElement.newElement("activity")
+        activity.createAndroidAttribute("name", android.R.attr.name).setValueAsString(name)
+        activity.createAndroidAttribute("exported", android.R.attr.exported).setValueAsBoolean(false)
+        activity.createAndroidAttribute("process", android.R.attr.process).setValueAsString(":pv7_recovery")
+        activity.createAndroidAttribute("noHistory", android.R.attr.noHistory).setValueAsBoolean(true)
+        activity.createAndroidAttribute("excludeFromRecents", android.R.attr.excludeFromRecents).setValueAsBoolean(true)
     }
 
     private fun applyDocumentsProviders(

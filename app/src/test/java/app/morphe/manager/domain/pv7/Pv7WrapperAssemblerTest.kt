@@ -93,6 +93,10 @@ class Pv7WrapperAssemblerTest {
                 assertTrue("android.permission.READ_EXTERNAL_STORAGE" in manifest.usesPermissions)
                 assertTrue("android.permission.RECORD_AUDIO" in manifest.usesPermissions)
 
+                val recovery = assertNotNull(manifest.listApplicationElementsByTag("activity")
+                    .singleOrNull { com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+                        .getAndroidNameValue(it) == "app.projectv7.wrapper.GuestRestartActivity" })
+                assertEquals(":pv7_recovery", recovery.searchAttributeByName("process")?.valueAsString)
                 val provider = manifest.listApplicationElementsByTag("provider")
                     .singleOrNull {
                         com.reandroid.arsc.chunk.xml.AndroidManifestBlock.getAndroidNameValue(it) ==

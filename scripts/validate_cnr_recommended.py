@@ -12,7 +12,7 @@ CNR_DIR = CATALOG / "modules/games/com.joydo.minestrikenew/cnr-compat"
 MANIFEST = CNR_DIR / "module.json"
 PROFILE = CATALOG / "profiles/com.joydo.minestrikenew/3.0.2.json"
 PAYLOAD = CNR_DIR / "payload"
-EXPECTED_HOST = "73e227106acf659709f92b4b2d75dc008b0b43e3a624f08e89f1f1e82ca5dad6"
+EXPECTED_HOST = "66c368c1fb5f83aa39b6df1fa8f120bc1c3f0e27dae41f6f2320926e6424ec22"
 EXPECTED_MODS = ("CNRModManager", "CNRMod", "CNRSettingsMod", "GraphicsSettings")
 
 def digest(data: bytes) -> str:
@@ -36,14 +36,16 @@ def main() -> None:
         "core-compat", "unity-4.6-compat", "cnr-compat"]
     assert all(x in modules for x in profile["recommendedModules"])
     assert all(x in modules for x in cnr["dependencies"])
-    assert cnr["version"] == "1.0.10"
+    assert cnr["version"] == "1.0.11"
     assert "lib/arm64-v8a/libpv7host.so.pv7z" in cnr["payloadFiles"]
     for f in cnr["payloadFiles"]:
         assert (PAYLOAD / f).is_file(), f"Missing payload: {f}"
 
     host = (PAYLOAD / "lib/arm64-v8a/libpv7host.so.pv7z").read_bytes()
     native = gzip.decompress(host)
-    assert digest(native) == EXPECTED_HOST, "Verified native host hash drift"
+    assert digest(native) == EXPECTED_HOST, "Pinned native host hash drift"
+    assert b"nativeGuestFrameCount" in native
+    assert b"RuntimeNativeClocks" in native
     assert b"PV7GAME render-worker-wait" in native
     assert b"PV7GAME render-worker-timeout" in native
     bootstrap_props = (
@@ -69,7 +71,7 @@ def main() -> None:
         ), "Host template missing the DocumentsProvider class"
     print("VALID: complete recommended profile, dependencies and payloads")
     print("VALID: managed DLL hashes and preserve-custom bootstrap rules")
-    print("VALID: exact known-good CNR ARM64 native library:", EXPECTED_HOST)
+    print("VALID: pinned CNR ARM64 native library:", EXPECTED_HOST)
     print("Native compression:", len(native), "->", len(host), "bytes")
     print("VALID: generic template remains separate and includes CNR provider class")
 

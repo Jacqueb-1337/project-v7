@@ -1,9 +1,9 @@
 {
   "id": "cnr-compat",
   "name": "CNR64 Compatibility",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "kind": "game",
-  "description": "CNR 3.0.2 compatibility with cooperative Unity frame sleep and the managed mod bootstrap.",
+  "description": "CNR 3.0.2 compatibility with cooperative Unity frame sleep and the managed mod bootstrap. Adds guest-frame heartbeat and runtime launch flags for wrapper restart/recovery.",
   "targets": {
     "packageIds": [
       "com.joydo.minestrikenew"
