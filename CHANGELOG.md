@@ -1,3 +1,10 @@
+## [1.37.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.2...v1.37.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **pv7:** preserve guest assets and restore mod bootstrap ([587a7fa](https://github.com/Jacqueb-1337/project-v7/commit/587a7fa11828a806dbd7fb4f63ffbad7aa1b12a7))
+
 ## [1.37.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.1...v1.37.2) (2026-11-23)
 
 
