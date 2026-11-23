@@ -301,11 +301,11 @@ class Pv7WrapperAssembler {
         scratchRoot: File,
         moduleId: String
     ) {
-        if (!relative.endsWith(".so.gz")) {
+        if (!relative.endsWith(".so.pv7z")) {
             replaceFile(apk, source, relative)
             return
         }
-        val apkPath = relative.removeSuffix(".gz")
+        val apkPath = relative.removeSuffix(".pv7z")
         val target = safeChild(File(scratchRoot, "inflated-native/" + moduleId), apkPath)
         target.parentFile?.mkdirs()
         GZIPInputStream(source.inputStream()).use { input ->

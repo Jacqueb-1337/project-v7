@@ -48,7 +48,7 @@ def main() -> None:
     payload_files = list(manifest.get("payloadFiles", []))
     report = []
 
-    verified_host = CNR_MODULE / "payload/lib/arm64-v8a/libpv7host.so.gz"
+    verified_host = CNR_MODULE / "payload/lib/arm64-v8a/libpv7host.so.pv7z"
     if verified_host.is_file():
         expected = "0396656c190c8f06fe195c5336453ab4ee56b5e3d4ccfb481af408ef02cd7ae9"
         unpacked = gzip.decompress(verified_host.read_bytes())
@@ -94,7 +94,7 @@ def main() -> None:
                 )
         report.append(f"{name} {version}: SHA256 {checksum[:16]}")
 
-    manifest["version"] = "1.0.8"
+    manifest["version"] = "1.0.9"
     manifest["dependencies"] = ["core-compat", "unity-4.6-compat"]
     manifest["payloadFiles"] = payload_files
     manifest["description"] = (

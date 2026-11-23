@@ -36,12 +36,12 @@ def main() -> None:
         "core-compat", "unity-4.6-compat", "cnr-compat"]
     assert all(x in modules for x in profile["recommendedModules"])
     assert all(x in modules for x in cnr["dependencies"])
-    assert cnr["version"] == "1.0.8"
-    assert "lib/arm64-v8a/libpv7host.so.gz" in cnr["payloadFiles"]
+    assert cnr["version"] == "1.0.9"
+    assert "lib/arm64-v8a/libpv7host.so.pv7z" in cnr["payloadFiles"]
     for f in cnr["payloadFiles"]:
         assert (PAYLOAD / f).is_file(), f"Missing payload: {f}"
 
-    host = (PAYLOAD / "lib/arm64-v8a/libpv7host.so.gz").read_bytes()
+    host = (PAYLOAD / "lib/arm64-v8a/libpv7host.so.pv7z").read_bytes()
     native = gzip.decompress(host)
     assert digest(native) == EXPECTED_HOST, "Verified native host hash drift"
     assert b"PV7GAME render-worker-wait" in native
