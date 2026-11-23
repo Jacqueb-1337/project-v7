@@ -1,3 +1,10 @@
+## [1.37.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.0...v1.37.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **pv7:** avoid Android auto-inflating CNR native asset ([74a1992](https://github.com/Jacqueb-1337/project-v7/commit/74a19927b23383039513621c0a5274f2844d527b))
+
 # [1.37.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.36.0...v1.37.0) (2026-11-23)
 
 
