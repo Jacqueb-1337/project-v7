@@ -1,3 +1,10 @@
+# [1.37.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.36.0...v1.37.0) (2026-11-23)
+
+
+### Features
+
+* **pv7:** publish verified CNR module recommendations on main ([94de9e1](https://github.com/Jacqueb-1337/project-v7/commit/94de9e16576192bbea7042c8f46a9d95cf2ea29c))
+
 # [1.36.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.35.0...v1.36.0) (2026-10-30)
 
 
