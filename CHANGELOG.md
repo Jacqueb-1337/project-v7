@@ -1,3 +1,10 @@
+## [1.37.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.1...v1.37.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **cnr:** reduce CPU during Unity frame waits ([05b7887](https://github.com/Jacqueb-1337/project-v7/commit/05b78877273b35cecbe0c7faebe918f857ef1050))
+
 ## [1.37.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.0...v1.37.1) (2026-11-23)
 
 
