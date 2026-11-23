@@ -85,10 +85,23 @@ class Pv7CatalogLoader(
 
             val module = json.decodeFromString<Pv7ModuleManifest>(stripBom(moduleText))
             val moduleDir = path.substringBeforeLast('/')
+            // A versioned module manifest is the cache key. Reuse unchanged
+            // payload bytes rather than downloading large native libraries on
+            // every catalog refresh. Changing a payload requires a version bump.
+            val cachedManifest = safeChild(cacheRoot, path)
+            val mayReusePayload = cachedManifest.isFile &&
+                cachedManifest.readText() == moduleText
             module.payloadFiles.forEach { relative ->
                 val payloadUrl = OFFICIAL_BASE_URL + moduleDir + "/payload/" + relative
                 val payloadPath = moduleDir + "/payload/" + relative
-                writeBytes(safeChild(tempRoot, payloadPath), fetchBytes(payloadUrl))
+                val output = safeChild(tempRoot, payloadPath)
+                val existing = safeChild(cacheRoot, payloadPath)
+                if (mayReusePayload && existing.isFile) {
+                    output.parentFile?.mkdirs()
+                    existing.copyTo(output, overwrite = true)
+                } else {
+                    writeBytes(output, fetchBytes(payloadUrl))
+                }
             }
         }
 

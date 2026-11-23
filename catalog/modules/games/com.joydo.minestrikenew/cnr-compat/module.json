@@ -1,45 +1,57 @@
 {
-    "id":  "cnr-compat",
-    "name":  "CNR64 Compatibility",
-    "version":  "1.0.1",
-    "kind":  "game",
-    "description":  "Cops N Robbers 3.0.2 compatibility module for its legacy Unity 4.6 runtime.",
-    "targets":  {
-                    "packageIds":  [
-                                       "com.joydo.minestrikenew"
-                                   ],
-                    "versions":  [
-                                     "3.0.2",
-                                     "3.0.2-cnr1"
-                                 ],
-                    "abis":  [
-                                 "armeabi-v7a"
-                             ],
-                    "engines":  [
-                                    "unity"
-                                ],
-                    "engineVersions":  [
-                                           "4.6.*"
-                                       ]
-                },
-    "dependencies":  [
-                         "core-compat"
-                     ],
-    "operations":  [
-                       {
-                           "type":  "compat.module",
-                           "value":  "cnr"
-                       },
-                       {
-                           "type":  "wrapper.addDocumentsProvider",
-                           "value":  {
-                                         "className":  "app.projectv7.wrapper.CNRModsDocumentsProvider",
-                                         "authoritySuffix":  ".documents"
-                                     }
-                       }
-                   ],
-    "payloadFiles":  [
-                         "assets/pv7/compat.properties",
-                         "assets/pv7/host.properties"
-                     ]
+  "id": "cnr-compat",
+  "name": "CNR64 Compatibility",
+  "version": "1.0.8",
+  "kind": "game",
+  "description": "CNR 3.0.2-specific compatibility including a verified ARM64 PV7 host with cooperative worker wait, and a pinned managed-mod bootstrap that preserves custom installs.",
+  "targets": {
+    "packageIds": [
+      "com.joydo.minestrikenew"
+    ],
+    "versions": [
+      "3.0.2",
+      "3.0.2-cnr1"
+    ],
+    "abis": [
+      "armeabi-v7a"
+    ],
+    "engines": [
+      "unity"
+    ],
+    "engineVersions": [
+      "4.6.*"
+    ]
+  },
+  "dependencies": [
+    "core-compat",
+    "unity-4.6-compat"
+  ],
+  "operations": [
+    {
+      "type": "compat.module",
+      "value": "cnr"
+    },
+    {
+      "type": "wrapper.addDocumentsProvider",
+      "value": {
+        "className": "app.projectv7.wrapper.CNRModsDocumentsProvider",
+        "authoritySuffix": ".documents"
+      }
+    }
+  ],
+  "payloadFiles": [
+    "assets/pv7/compat.properties",
+    "assets/pv7/host.properties",
+    "assets/bootstrap/CNRModManager.dll",
+    "assets/bootstrap/CNRModManager.dll.sha256",
+    "assets/bootstrap/repo-sources.txt",
+    "assets/bootstrap/repo-sources.txt.sha256",
+    "assets/bootstrap/CNRMod.dll",
+    "assets/bootstrap/CNRMod.dll.sha256",
+    "assets/bootstrap/CNRSettingsMod.dll",
+    "assets/bootstrap/CNRSettingsMod.dll.sha256",
+    "assets/bootstrap/GraphicsSettings.dll",
+    "assets/bootstrap/GraphicsSettings.dll.sha256",
+    "lib/arm64-v8a/libpv7host.so.gz"
+  ]
 }

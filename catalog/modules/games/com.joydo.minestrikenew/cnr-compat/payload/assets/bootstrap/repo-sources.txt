@@ -1,0 +1,2 @@
+https://raw.githubusercontent.com/Jacqueb-1337/copsnrobbers/master/cnr-revived-web/mods/repo.json
+https://play.jacqueb.me/mods/repo.json
