@@ -1,0 +1,88 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -3422,6 +3422,28 @@
+ #if defined(__ANDROID__)
+     // Called only on the guest render thread, with an acquired replacement
+     // window from the JNI queue. Guest EGL handles and the context stay stable.
++    // The guest sees one stable window proxy, not a host pointer. Maintain
++    // logical guest references and one native pin while any reference exists.
++    bool AcquireGuestWindowReference() {
++        auto* window = static_cast<ANativeWindow*>(host_native_window_);
++        if (!window || guest_window_refs_ == 0xffffffffu) return false;
++        if (!guest_window_refs_) {
++            ANativeWindow_acquire(window);
++            guest_window_pin_ = window;
++        }
++        ++guest_window_refs_;
++        return true;
++    }
++
++    bool ReleaseGuestWindowReference() {
++        if (!guest_window_refs_) return false;
++        if (--guest_window_refs_ == 0 && guest_window_pin_) {
++            ANativeWindow_release(guest_window_pin_);
++            guest_window_pin_ = nullptr;
++        }
++        return true;
++    }
++
+     bool RebindGuestHostWindow(ANativeWindow* next) {
+         if (!next) return true;
+         const EGLDisplay display = eglGetCurrentDisplay();
+@@ -3450,6 +3472,11 @@
+             owned_egl_surfaces_[replacement] = state.display;
+             if (draw == old_surface) new_draw = replacement;
+             if (read == old_surface) new_read = replacement;
++        }
++        if (guest_window_refs_ && guest_window_pin_ != next) {
++            ANativeWindow_acquire(next);
++            if (guest_window_pin_) ANativeWindow_release(guest_window_pin_);
++            guest_window_pin_ = next;
+         }
+         if (replacement_host_window_) ANativeWindow_release(replacement_host_window_);
+         replacement_host_window_ = next;
+@@ -3505,6 +3532,9 @@
+         eglReleaseThread();
+         egl_handles_.clear();
+         window_egl_states_.clear();
++        if (guest_window_pin_) ANativeWindow_release(guest_window_pin_);
++        guest_window_pin_ = nullptr;
++        guest_window_refs_ = 0;
+         if (replacement_host_window_) ANativeWindow_release(replacement_host_window_);
+         replacement_host_window_ = nullptr;
+         host_native_window_ = nullptr;
+@@ -7511,8 +7541,25 @@
+             return true;
+         }
+ #endif
++        if (fast_name == "ANativeWindow_acquire" || fast_name == "ANativeWindow_release") {
++#if defined(__ANDROID__)
++            if (Arg(0) != kGuestNativeWindowHandle) return false;
++            const bool ok = fast_name == "ANativeWindow_acquire"
++                ? AcquireGuestWindowReference() : ReleaseGuestWindowReference();
++            if (!ok) return false;
++            __android_log_print(ANDROID_LOG_INFO, "PV7HOST", "PV7WINDOW %s refs=%u",
++                                fast_name.c_str(), guest_window_refs_);
++            return true;
++#else
++            return false;
++#endif
++        }
+         if (fast_name == "ANativeWindow_fromSurface") {
++#if defined(__ANDROID__)
++            Ret(AcquireGuestWindowReference() ? kGuestNativeWindowHandle : 0u);
++#else
+             Ret(host_native_window_ ? kGuestNativeWindowHandle : 0u);
++#endif
+             if (file_trace.size() < 64) {
+                 file_trace.push_back(host_native_window_
+                     ? "ANativeWindow_fromSurface -> real host window"
+@@ -9247,6 +9294,8 @@
+     struct WindowEglState { EGLDisplay display; EGLConfig config; std::vector<EGLint> attributes; };
+     std::unordered_map<std::uint32_t, WindowEglState> window_egl_states_;
+     ANativeWindow* replacement_host_window_ = nullptr;
++    ANativeWindow* guest_window_pin_ = nullptr;
++    std::uint32_t guest_window_refs_ = 0;
+     std::unordered_map<EGLContext, EGLDisplay> owned_egl_contexts_;
+     std::unordered_map<std::uint32_t, std::uint32_t> gl_string_cache_;
+     std::unordered_map<std::uint32_t, GuestGlMappedRange> gl_mapped_ranges_;

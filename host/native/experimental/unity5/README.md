@@ -22,6 +22,8 @@ and 5 sources after newline normalization.
   EGL and native-window queries).
 - 04: select lifecycle calls by actual registered JNI method descriptors;
   initialize UnityWebRequest when registered and use the indexed surface ABI.
+- 05: reference-counted guest native-window proxy, with native pin transfer
+  on surface replacement and cleanup on shutdown.
 
 ## Verification and limitations
 
@@ -42,6 +44,11 @@ The patcher-side audit reports candidate coverage for the existing bundled
 ARM64 host; it must be regenerated when the diagnostic native host is
 integrated. No native binary is replaced by this patch series.
 
-Next: implement guest-safe native-window ownership, review remaining imports
-and data symbols, audit JNI calls, and regression-test Unity 4.6 before
-replacing the host template.
+Stage 7 passed the native-window acquisition/release sequence (references
+2 then 1), nativeRecreateGfxState, nativeResume and nativeFocusChanged.
+The first nativeRender entered, ran two pthread_once initializers, and
+stopped on syscall. Disassembly of its call site shows ARM EABI syscall
+241 (sched_setaffinity), not the ARM64 syscall number. No frame rendered yet.
+
+Next: implement guest-scoped syscall dispatch, audit remaining imported data
+and JNI calls, and regression-test Unity 4.6 before replacing the template.
