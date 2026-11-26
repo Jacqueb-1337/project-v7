@@ -95,7 +95,7 @@ internal fun Pv7CompatibilityDialog(
             AppDialogButtonRow(
                 primaryText = "Continue",
                 onPrimaryClick = onProceed,
-                primaryEnabled = Pv7GuestBackend.canBuild(target) &&
+                primaryEnabled = Pv7GuestBackend.canProceed(target, resolution.selectedModuleIds) &&
                     !missingOptions &&
                     resolution.selectedModuleIds.isNotEmpty() &&
                     (catalogIssues + resolution.issues).isEmpty(),
@@ -156,6 +156,10 @@ internal fun Pv7CompatibilityDialog(
                                     ?: "unknown ABI"),
                             style = MaterialTheme.typography.bodySmall
                         )
+                        if (Pv7GuestBackend.isCocos(target)) {
+                            Text("Cocos2d-x backend available. Select Cocos2d-x Compatibility to build an experimental wrapper. Other games may need additional JNI, native-library or graphics support.",
+                                style = MaterialTheme.typography.bodySmall)
+                        }
                         if (!Pv7GuestBackend.canBuild(target)) {
                             Text(
                                 Pv7GuestBackend.explanation(target),
@@ -163,7 +167,7 @@ internal fun Pv7CompatibilityDialog(
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                "Continue is disabled until a compatible backend is implemented.",
+                                "Continue is disabled because this APK has no supported guest backend.",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

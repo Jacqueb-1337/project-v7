@@ -1,0 +1,27 @@
+{
+  "id": "best-park-1.2.0-experimental",
+  "packageId": "com.turner.bestparkintheuniverse",
+  "versions": [
+    "1.2.0"
+  ],
+  "abis": [
+    "armeabi",
+    "armeabi-v7a"
+  ],
+  "engines": [
+    "cocos2dx"
+  ],
+  "engineVersions": [
+    "cocos2d-2.1rc0-x-2.1.2"
+  ],
+  "maintainer": "Project V7",
+  "tested": false,
+  "recommendedModules": [
+    "core-compat",
+    "cocos2dx-compat",
+    "best-park-compat"
+  ],
+  "blacklist": [],
+  "notes": "Standalone diagnostic gameplay validated; common host supervisor integration is experimental. Supply the original version-16 OBB via PV7 Game Storage. No guest APK or OBB is distributed.",
+  "profileVersion": 1
+}

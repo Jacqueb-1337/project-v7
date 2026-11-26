@@ -521,10 +521,9 @@ class PatcherWorker(
                         }
 
                     val assembler = Pv7WrapperAssembler()
-                    val guestPayload = assembler.extractLegacyUnityGuest(
-                        inputApk = inputFile,
-                        stagingRoot = File(pv7Work, "guest")
-                    )
+                    val guestPayload = if (app.morphe.manager.domain.pv7.Pv7EngineDetector.detect(inputFile)?.id == "cocos2dx") {
+                        app.morphe.manager.domain.pv7.Pv7CocosGuestPackager.stage(inputFile, File(pv7Work, "guest"))
+                    } else assembler.extractLegacyUnityGuest(inputApk = inputFile, stagingRoot = File(pv7Work, "guest"))
 
                     val wrapperPackage = optionValue("wrapper.setPackageId")
                         ?: args.packageName + ".pv7"
