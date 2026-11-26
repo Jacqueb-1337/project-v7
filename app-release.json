@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-23T23:32:48",
-  "description": "## [1.37.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.2...v1.37.3) (2026-11-23)\n\n\n### Bug Fixes\n\n* **pv7:** preserve guest assets and restore mod bootstrap ([587a7fa](https://github.com/Jacqueb-1337/project-v7/commit/587a7fa11828a806dbd7fb4f63ffbad7aa1b12a7))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.3/project-v7-patcher-1.37.3.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.37.3/project-v7-patcher-1.37.3.apk.asc",
-  "version": "1.37.3"
+  "created_at": "2026-11-26T00:48:33",
+  "description": "# [1.38.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.3...v1.38.0) (2026-11-26)\n\n\n### Features\n\n* **pv7:** ship shared guest supervisor by default ([9296fd8](https://github.com/Jacqueb-1337/project-v7/commit/9296fd80f569a3451a1961405381019340aeaa84))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.38.0/project-v7-patcher-1.38.0.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.38.0/project-v7-patcher-1.38.0.apk.asc",
+  "version": "1.38.0"
 }
