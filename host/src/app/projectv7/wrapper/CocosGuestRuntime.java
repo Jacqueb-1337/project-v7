@@ -34,7 +34,7 @@ public final class CocosGuestRuntime {
         if (guestPackage == null || !guestPackage.matches("[A-Za-z0-9_]+(?:[.][A-Za-z0-9_]+)+") || guestVersion <= 0)
             throw new java.io.IOException("Original guest package/version missing");
         File expansion = new File(new File(shared,"obb"),"main."+guestVersion+"."+guestPackage+".obb");
-        expansionPath = expansion.isFile() ? expansion.getAbsolutePath() : "";
+        expansionPath = expansion.getAbsolutePath();
         Log.i(TAG,"Original expansion exists="+expansion.isFile());
     }
     static void reset(boolean bestPark) { nativePrepare(bestPark); }
@@ -437,8 +437,13 @@ public final class CocosGuestRuntime {
            relative.contains("\\") || relative.contains(":") ||
            java.util.Arrays.asList(relative.split("/")).contains("..")) return null;
         File expansion=new File(expansionPath);
-        if(!expansion.isFile()) return null;
+        if(!expansion.isFile()) {
+            GuestStorageDiagnostics.report(expansionPath,false,
+                expansion.exists() ? "unreadable" : "missing",android.os.SystemClock.elapsedRealtime());
+            return null;
+        }
         try(java.util.zip.ZipFile zip=new java.util.zip.ZipFile(expansion)) {
+            GuestStorageDiagnostics.report(expansionPath,true,"",android.os.SystemClock.elapsedRealtime());
             java.util.zip.ZipEntry entry=zip.getEntry(relative);
             String sourceName=relative;
             if(entry==null) sourceName=relative.substring(relative.indexOf('/')+1);
@@ -473,6 +478,13 @@ public final class CocosGuestRuntime {
             Log.i(TAG,"Guest resource staged "+virtualPath+
                     (entry==null?" from APK assets":" from OBB"));
             return output.getAbsolutePath();
+        } catch(java.util.zip.ZipException invalid) {
+            GuestStorageDiagnostics.report(expansionPath,false,"corrupt",android.os.SystemClock.elapsedRealtime());
+            throw invalid;
+        } catch(java.io.IOException failure) {
+            if(!expansion.canRead()) GuestStorageDiagnostics.report(expansionPath,false,
+                "unreadable",android.os.SystemClock.elapsedRealtime());
+            throw failure;
         }
     }
     public static void recordGuestAchievement(String id) {
@@ -484,12 +496,38 @@ public final class CocosGuestRuntime {
         }
     }
 
+    public static synchronized void incrementGuestAchievement(String id,int steps) {
+        Activity owner=active;
+        if(owner==null || id==null) throw new IllegalStateException("Achievement unavailable");
+        if(steps<=0 || id.isEmpty())return;
+        // Separate preference namespace: existing unlock booleans are not overwritten.
+        android.content.SharedPreferences progress=owner.getSharedPreferences(
+            "PV7GuestAchievementProgress",android.content.Context.MODE_PRIVATE);
+        int next=GuestAchievementProgress.increment(progress.getInt(id,0),steps);
+        if(!progress.edit().putInt(id,next).commit())
+            throw new IllegalStateException("Unable to save achievement progress");
+    }
+
     private static volatile String expansionPath = "";
 
     /** Equivalent to the original game version-16 expansion lookup, with
      * the wrapper's own Android OBB directory substituted for guest storage. */
     public static String resolveExpansionPath() {
-        return expansionPath;
+        File file = new File(expansionPath);
+        // This callback is a real guest lookup, not a speculative directory scan.
+        // Verify the ZIP central directory before reporting this expansion usable.
+        String failure=null;
+        if(!file.exists()) failure="missing";
+        else if(!file.isFile() || !file.canRead()) failure="unreadable";
+        else {
+            try(java.util.zip.ZipFile zip=new java.util.zip.ZipFile(file)) {
+                if(zip.size()==0)failure="corrupt";
+            } catch(java.util.zip.ZipException invalid) { failure="corrupt"; }
+              catch(java.io.IOException unreadable) { failure="unreadable"; }
+        }
+        GuestStorageDiagnostics.report(expansionPath,failure==null,
+            failure==null?"":failure,android.os.SystemClock.elapsedRealtime());
+        return failure==null ? expansionPath : "";
     }
 
 
