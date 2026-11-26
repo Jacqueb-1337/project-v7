@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T20:48:02",
-  "description": "# [1.44.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.1...v1.44.0) (2026-11-26)\n\n\n### Features\n\n* experimental game catalog opt-in and download progress ([b59d153](https://github.com/Jacqueb-1337/project-v7/commit/b59d1532c676deff43bbbad9c25fd78c7f60035e))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.44.0/project-v7-patcher-1.44.0.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.44.0/project-v7-patcher-1.44.0.apk.asc",
-  "version": "1.44.0"
+  "created_at": "2026-11-26T21:31:12",
+  "description": "# [1.45.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.44.0...v1.45.0) (2026-11-26)\n\n\n### Features\n\n* separate Unity 5.6 compatibility and improve runtime audit ([#38](https://github.com/Jacqueb-1337/project-v7/issues/38)) ([0a68b1c](https://github.com/Jacqueb-1337/project-v7/commit/0a68b1c0cb4e6720e1dca4662543505a435ee1ac))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.45.0/project-v7-patcher-1.45.0.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.45.0/project-v7-patcher-1.45.0.apk.asc",
+  "version": "1.45.0"
 }
