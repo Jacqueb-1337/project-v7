@@ -63,11 +63,11 @@ fun Pv7GameCatalogScreen(
                         if (state.total > 0) {
                             LinearProgressIndicator(progress = { state.completed.toFloat().div(state.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                         }
-                        val received = String.format(java.util.Locale.getDefault(), "%.2f MB", state.bytes / 1048576.0)
+                        val received = String.format(java.util.Locale.ROOT, "%.2f MB", state.bytes / 1000000.0)
                         if (state.totalBytes > 0) {
                             val fraction = (state.bytes.toFloat() / state.totalBytes).coerceIn(0f, 1f)
                             LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
-                            Text(received + " / " + String.format(java.util.Locale.getDefault(), "%.2f MB", state.totalBytes / 1048576.0) + " (" + (fraction * 100).toInt() + "%)", style = MaterialTheme.typography.bodySmall)
+                            Text(received + " / " + String.format(java.util.Locale.ROOT, "%.2f MB", state.totalBytes / 1000000.0) + " (" + (fraction * 100).toInt() + "%)", style = MaterialTheme.typography.bodySmall)
                         } else {
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             if (state.bytes > 0) Text(received, style = MaterialTheme.typography.bodySmall)
