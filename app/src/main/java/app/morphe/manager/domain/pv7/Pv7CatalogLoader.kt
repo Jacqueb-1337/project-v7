@@ -16,7 +16,11 @@ data class Pv7SupportedApp(
     val versions: List<String> = emptyList(),
     val downloadUrl: String? = null,
     val iconUrl: String? = null,
-    val pinnedByDefault: Boolean = true
+    val pinnedByDefault: Boolean = false,
+    val engine: String? = null,
+    val experimental: Boolean = false,
+    val gameplayTested: Boolean = false,
+    val notes: String? = null
 )
 
 @Serializable

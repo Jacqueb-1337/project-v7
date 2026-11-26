@@ -1,0 +1,24 @@
+{
+  "id": "best-park-1.2.1-tested",
+  "packageId": "com.turner.bestparkintheuniverse",
+  "versions": [
+    "1.2.1"
+  ],
+  "abis": [
+    "armeabi",
+    "armeabi-v7a"
+  ],
+  "engines": [
+    "cocos2dx"
+  ],
+  "maintainer": "Project V7",
+  "tested": true,
+  "recommendedModules": [
+    "core-compat",
+    "cocos2dx-compat",
+    "best-park-compat"
+  ],
+  "blacklist": [],
+  "notes": "Gameplay verified on ARM64 Android with PV7 1.39.3: three levels completed, including combat and level transitions. Requires original version-code 16 APK with verified native SHA-256 and original OBB via PV7 Game Storage. Full campaign, other devices and legacy online services are not verified.",
+  "profileVersion": 3
+}

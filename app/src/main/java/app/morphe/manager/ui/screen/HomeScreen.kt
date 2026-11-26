@@ -7,9 +7,17 @@ package app.morphe.manager.ui.screen
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.dp
+import app.morphe.manager.domain.pv7.Pv7GameCatalogSearch
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -98,8 +106,15 @@ fun HomeScreen(
     val availablePatches by homeViewModel.availablePatches.collectAsStateWithLifecycle(0)
     // Atomic home state - null means pipeline is still initializing (shimmer)
     val homeAppState by homeViewModel.apps.homeAppState.collectAsStateWithLifecycle()
-    val homeAppItems = homeAppState?.visible ?: emptyList()
-    val hiddenAppItems = homeAppState?.hidden ?: emptyList()
+    val catalogApps by homeViewModel.apps.pv7SupportedApps.collectAsStateWithLifecycle()
+    var catalogOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = catalogOpen) { catalogOpen = false }
+    val homeAppItems = homeAppState?.visible.orEmpty().filter {
+        Pv7GameCatalogSearch.showOnHome(it.packageName, catalogApps.keys, it.isInstalledOnDevice, it.installedApp != null)
+    }
+    val hiddenAppItems = homeAppState?.hidden.orEmpty().filter {
+        Pv7GameCatalogSearch.showOnHome(it.packageName, catalogApps.keys, it.isInstalledOnDevice, it.installedApp != null)
+    }
     val homeAppSortMode = homeAppState?.sortMode ?: HomeAppSortMode.MANUAL
     val homeAppCategoryState = homeAppState?.categoryState ?: HomeAppCategoryState(emptyList(), emptyMap())
     val homeAppCategoryViewMode = homeAppState?.categoryViewMode ?: HomeAppCategoryViewMode.ALL_APPS
@@ -268,6 +283,23 @@ fun HomeScreen(
         )
     }
 
+    if (catalogOpen) {
+        Pv7GameCatalogScreen(
+            apps = catalogApps.values,
+            loading = catalogApps.isEmpty() && bundlePipelineLoading,
+            onBack = { catalogOpen = false },
+            onRefresh = onRefresh,
+            onPickApk = { catalogOpen = false; openApkPicker() },
+            onGameClick = { entry ->
+                // Only an original installed package is a valid APK source, not a PV7 clone.
+                val originalVersion = runCatching {
+                    context.packageManager.getPackageInfo(entry.packageName, 0).versionName
+                }.getOrNull()
+                catalogOpen = false
+                homeViewModel.showPv7SupportedAppSource(entry, originalVersion)
+            }
+        )
+    } else {
     // Main content with pull-to-refresh
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -279,6 +311,12 @@ fun HomeScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
+            OutlinedButton(
+                onClick = { catalogOpen = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)
+            ) {
+                Text(stringResource(R.string.pv7_game_catalog_browse))
+            }
             SectionsLayout(
                 notifications = HomeNotificationsUi(
                     managerUpdate = AlertState(hasManagerUpdate) { showUpdateDetailsDialog.value = true },
@@ -399,5 +437,6 @@ fun HomeScreen(
                 onboardingState = onboardingState
             )
         }
+    }
     }
 }

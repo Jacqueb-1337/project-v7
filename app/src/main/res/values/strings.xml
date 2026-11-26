@@ -1460,4 +1460,16 @@ Do you still want to continue?"</string>
     <string name="pv7_supported_app_source_title">Choose APK source</string>
     <string name="pv7_supported_app_source_description">Select how to patch %1$s with Project V7.</string>
     <string name="pv7_help_find_apk">Help me find an APK</string>
+    <string name="pv7_game_catalog_browse">Browse game catalog</string>
+    <string name="pv7_game_catalog_title">Game catalog</string>
+    <string name="pv7_game_catalog_back">Back</string>
+    <string name="pv7_game_catalog_refresh">Refresh catalog</string>
+    <string name="pv7_game_catalog_search">Search games, packages, or engines</string>
+    <string name="pv7_game_catalog_clear">Clear search</string>
+    <string name="pv7_game_catalog_count">%1$d of %2$d games</string>
+    <string name="pv7_game_catalog_empty">No games loaded. Refresh the catalog or choose your own APK.</string>
+    <string name="pv7_game_catalog_no_results">No matching games.</string>
+    <string name="pv7_game_catalog_experimental">Experimental</string>
+    <string name="pv7_game_catalog_other_apk">Patch another APK</string>
+    <string name="pv7_game_catalog_supported">Supported</string>
 </resources>
