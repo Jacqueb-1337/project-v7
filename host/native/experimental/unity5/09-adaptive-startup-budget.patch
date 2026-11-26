@@ -1,0 +1,32 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -11002,7 +11002,11 @@
+                         // slices while Unity's preload and worker threads make progress. A
+                         // lower release-only cap can make clean builds appear frozen during
+                         // early Unity startup even when developer builds continue normally.
+-                        const int kUnityFollowupMaxSlices = is_interactive_render ? 120000 : (is_render_call ? 16000 : (needs_worker_pump ? 8000 : 1000));
++                        const bool startup_render = is_render_call && !is_interactive_render;
++                        int kUnityFollowupMaxSlices = is_interactive_render ? 120000 : (is_render_call ? 16000 : (needs_worker_pump ? 8000 : 1000));
++                        const auto startup_begin = std::chrono::steady_clock::now();
++                        std::array<std::uint32_t, 16> startup_sample{};
++                        unsigned startup_changes = 0;
+                         constexpr int kUnityPeriodicWorkerPumpSlices = 16;
+                         int followup_slices = 0;
+                         std::size_t followup_cache_restarts = 0;
+@@ -11088,6 +11092,16 @@
+                             return true;
+                         };
+                         for (; followup_slices < kUnityFollowupMaxSlices; ++followup_slices) {
++                            if (startup_render && (followup_slices % 256 == 0)) {
++                                if (std::chrono::steady_clock::now() - startup_begin >= std::chrono::seconds(45)) break;
++                                if (jit.Regs() != startup_sample) ++startup_changes;
++                                startup_sample = jit.Regs();
++                            }
++                            if (startup_render && followup_slices == kUnityFollowupMaxSlices - 1 &&
++                                startup_changes >= 4 && kUnityFollowupMaxSlices < 1000000) {
++                                kUnityFollowupMaxSlices = std::min(kUnityFollowupMaxSlices + 16000, 1000000);
++                                startup_changes = 0;
++                            }
+                             if (needs_worker_pump && !is_interactive_render && !IsGuestGameLoopRunning()) break;
+                             if (env.MainTrylockWaitPending()) {
+                                 const bool main_signal_ready = env.HasDeliverablePendingGuestSignal(1u) ||

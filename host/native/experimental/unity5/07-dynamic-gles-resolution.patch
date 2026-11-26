@@ -1,0 +1,90 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -1425,9 +1425,9 @@
+         }
+     }
+ 
+-    // Unity 4.6 resolves several GLES extensions dynamically through eglGetProcAddress.
+-    // Preinstall guest-callable thunks for the subset we bridge so the ARM32 caller never
+-    // receives an unusable arm64 host function pointer.
++    // Unity 5 also resolves core GLES functions dynamically, without ELF imports.
++    // Register guest-callable thunks for the implemented GLES dispatch surface.
++    // Keep existing entries in order to preserve their thunk IDs where possible.
+     static const char* dynamic_gles_symbols[] = {
+         "glDiscardFramebufferEXT",
+         "glMapBufferOES", "glUnmapBufferOES",
+@@ -1438,7 +1438,38 @@
+         "glRenderbufferStorageMultisampleEXT", "glFramebufferTexture2DMultisampleEXT",
+         "glRenderbufferStorageMultisampleAPPLE", "glResolveMultisampleFramebufferAPPLE",
+         "glGetProgramBinaryOES", "glProgramBinaryOES",
+-        "glPushGroupMarkerEXT", "glPopGroupMarkerEXT"
++        "glPushGroupMarkerEXT", "glPopGroupMarkerEXT",
++        "glActiveTexture", "glAttachShader", "glBindAttribLocation",
++        "glBindBuffer", "glBindFramebuffer", "glBindRenderbuffer",
++        "glBindTexture", "glBlendEquationSeparate", "glBlendFuncSeparate",
++        "glBufferData", "glBufferSubData", "glCheckFramebufferStatus",
++        "glClear", "glClearColor", "glClearDepthf",
++        "glClearStencil", "glColorMask", "glCompileShader",
++        "glCompressedTexImage2D", "glCompressedTexSubImage2D", "glCopyTexSubImage2D",
++        "glCreateProgram", "glCreateShader", "glCullFace",
++        "glDeleteBuffers", "glDeleteFramebuffers", "glDeleteProgram",
++        "glDeleteRenderbuffers", "glDeleteShader", "glDeleteTextures",
++        "glDepthFunc", "glDepthMask", "glDisable",
++        "glDisableVertexAttribArray", "glDrawArrays", "glDrawElements",
++        "glEnable", "glEnableVertexAttribArray", "glFinish",
++        "glFlush", "glFramebufferRenderbuffer", "glFramebufferTexture2D",
++        "glFrontFace", "glGenBuffers", "glGenFramebuffers",
++        "glGenRenderbuffers", "glGenTextures", "glGenerateMipmap",
++        "glGetActiveAttrib", "glGetActiveUniform", "glGetAttribLocation",
++        "glGetError", "glGetFramebufferAttachmentParameteriv", "glGetIntegerv",
++        "glGetProgramInfoLog", "glGetProgramiv", "glGetShaderInfoLog",
++        "glGetShaderiv", "glGetString", "glGetUniformLocation",
++        "glGetVertexAttribPointerv", "glGetVertexAttribiv", "glLinkProgram",
++        "glPixelStorei", "glPolygonOffset", "glReadPixels",
++        "glRenderbufferStorage", "glScissor", "glShaderSource",
++        "glStencilFunc", "glStencilFuncSeparate", "glStencilMask",
++        "glStencilOp", "glStencilOpSeparate", "glTexImage2D",
++        "glTexParameteri", "glTexSubImage2D", "glUniform1fv",
++        "glUniform1i", "glUniform1iv", "glUniform2fv",
++        "glUniform2iv", "glUniform3fv", "glUniform3iv",
++        "glUniform4fv", "glUniform4iv", "glUniformMatrix3fv",
++        "glUniformMatrix4fv", "glUseProgram", "glVertexAttribPointer",
++        "glViewport"
+     };
+     for (const char* symbol : dynamic_gles_symbols) {
+         if (out.name_to_stub.find(symbol) != out.name_to_stub.end()) continue;
+@@ -4485,6 +4516,18 @@
+         Write32(memory_, kBootstrapRuntimeBase, value);
+     }
+ 
++    void LogDynamicLookupMiss(const char* resolver, const std::string& symbol) {
++#if defined(__ANDROID__)
++        if (dynamic_lookup_misses_.size() >= 512u) return;
++        const std::string key = std::string(resolver) + ":" + symbol;
++        if (dynamic_lookup_misses_.emplace(key, 1u).second)
++            __android_log_print(ANDROID_LOG_WARN, "PV7HOST",
++                                "PV7DYNAMIC unresolved %s %s", resolver, symbol.c_str());
++#endif
++    }
++
++    std::unordered_map<std::string, std::uint32_t> dynamic_lookup_misses_;
++
+     std::uint32_t Arg(unsigned index) const {
+         if (!jit) return 0;
+         if (index < 4) return jit->Regs()[index];
+@@ -7252,6 +7295,7 @@
+             if (guest != exports_.end()) Ret(guest->second.address);
+             else {
+                 const auto thunk = name_to_stub_.find(symbol);
++                if (thunk == name_to_stub_.end()) LogDynamicLookupMiss("dlsym", symbol);
+                 Ret(thunk == name_to_stub_.end() ? 0u : thunk->second);
+             }
+             return true;
+@@ -7583,6 +7627,7 @@
+             // guest SVC thunk only for extension entry points implemented by this bridge.
+             const std::string symbol = ReadCString(Arg(0), 256);
+             const auto found = name_to_stub_.find(symbol);
++            if (found == name_to_stub_.end()) LogDynamicLookupMiss("eglGetProcAddress", symbol);
+             Ret(found == name_to_stub_.end() ? 0u : found->second);
+             return true;
+         }

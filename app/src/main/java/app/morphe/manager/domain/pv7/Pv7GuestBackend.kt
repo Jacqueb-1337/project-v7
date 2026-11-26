@@ -9,8 +9,11 @@ object Pv7GuestBackend {
 
     fun isUnity(target: Pv7AppTarget): Boolean =
         target.engine?.id == "unity" &&
-            (target.engine.version == null || target.engine.version.startsWith("4.6.")) &&
+            (target.engine.version == null || target.engine.version.startsWith("4.6.") || target.engine.version.startsWith("5.6.")) &&
             target.abis.any { it == "armeabi" || it == "armeabi-v7a" }
+
+    fun isExperimentalUnity56(target: Pv7AppTarget): Boolean =
+        target.engine?.id == "unity" && target.engine.version?.startsWith("5.6.") == true
 
     fun isBestPark(target: Pv7AppTarget): Boolean =
         target.packageId == BEST_PARK_PACKAGE && target.versionName in BEST_PARK_VERSIONS &&
@@ -33,7 +36,9 @@ object Pv7GuestBackend {
 
     fun explanation(target: Pv7AppTarget): String = when (target.engine?.id) {
         "cocos2dx" -> "Cocos2d-x requires a detected ARM32 guest library (armeabi or armeabi-v7a)."
-        "unity" -> "This Unity build does not match the legacy ARMv7 Unity 4.6 Mono runtime."
+        "unity" -> if (isExperimentalUnity56(target)) {
+            "Experimental Unity 5.6 guest: the Unity 4.6 host may fail to launch, render, or play this game. Not tested."
+        } else "This Unity build does not match the legacy ARMv7 Unity 4.6 Mono runtime."
         else -> "This APK requires a compatible native runtime backend."
     }
 }

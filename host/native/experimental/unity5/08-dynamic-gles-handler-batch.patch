@@ -1,0 +1,441 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -1469,7 +1469,18 @@
+         "glUniform2iv", "glUniform3fv", "glUniform3iv",
+         "glUniform4fv", "glUniform4iv", "glUniformMatrix3fv",
+         "glUniformMatrix4fv", "glUseProgram", "glVertexAttribPointer",
+-        "glViewport"
++        "glViewport",
++        "glBindVertexArrayOES", "glBlendBarrierKHR", "glBlendEquation",
++        "glCopyImageSubDataEXT", "glCopyTexImage2D", "glDebugMessageControlKHR",
++        "glDebugMessageInsertKHR", "glDeleteVertexArraysOES", "glFramebufferTexture3D",
++        "glGenVertexArraysOES", "glGetObjectLabelEXT", "glGetObjectLabelKHR",
++        "glGetShaderPrecisionFormat", "glGetShaderSource", "glGetTexParameteriv",
++        "glGetUniformiv", "glIsEnabled", "glLabelObjectEXT",
++        "glObjectLabelKHR", "glPatchParameteriEXT", "glPopDebugGroupKHR",
++        "glPushDebugGroupKHR", "glTexImage3DOES", "glTexParameterf",
++        "glTexParameteriv", "glTexSubImage3DOES", "glUniform1uiv",
++        "glUniform2uiv", "glUniform3uiv", "glUniform4uiv",
++        "glValidateProgram", "glVertexAttrib4f"
+     };
+     for (const char* symbol : dynamic_gles_symbols) {
+         if (out.name_to_stub.find(symbol) != out.name_to_stub.end()) continue;
+@@ -4516,6 +4527,34 @@
+         Write32(memory_, kBootstrapRuntimeBase, value);
+     }
+ 
++    bool DynamicGlesAvailable(const std::string& symbol) {
++#if defined(__ANDROID__)
++        const char* extension = nullptr;
++        const char* hostName = symbol.c_str();
++        if (symbol == "glFramebufferTexture3D") { extension = "GL_OES_texture_3D"; hostName = "glFramebufferTexture3DOES"; }
++        else if (symbol == "glTexImage3DOES" || symbol == "glTexSubImage3DOES") extension = "GL_OES_texture_3D";
++        else if (symbol == "glBindVertexArrayOES" || symbol == "glDeleteVertexArraysOES" || symbol == "glGenVertexArraysOES") extension = "GL_OES_vertex_array_object";
++        else if (symbol == "glCopyImageSubDataEXT") extension = "GL_EXT_copy_image";
++        else if (symbol == "glPatchParameteriEXT") extension = "GL_EXT_tessellation_shader";
++        else if (symbol == "glBlendBarrierKHR") extension = "GL_KHR_blend_equation_advanced";
++        else if (symbol == "glLabelObjectEXT" || symbol == "glGetObjectLabelEXT") extension = "GL_EXT_debug_label";
++        else if (symbol == "glDebugMessageControlKHR" || symbol == "glDebugMessageInsertKHR" ||
++                 symbol == "glObjectLabelKHR" || symbol == "glGetObjectLabelKHR" ||
++                 symbol == "glPushDebugGroupKHR" || symbol == "glPopDebugGroupKHR") return false;
++        else if (symbol == "glUniform1uiv" || symbol == "glUniform2uiv" || symbol == "glUniform3uiv" || symbol == "glUniform4uiv") {
++            const auto* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
++            return version && std::strstr(version, "OpenGL ES 3.") && eglGetProcAddress(hostName);
++        }
++        if (extension) {
++            const auto* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
++            if (!ext || !eglGetProcAddress(hostName)) return false;
++            const std::string tokens = std::string(" ") + ext + " ";
++            return tokens.find(std::string(" ") + extension + " ") != std::string::npos;
++        }
++#endif
++        return true;
++    }
++
+     void LogDynamicLookupMiss(const char* resolver, const std::string& symbol) {
+ #if defined(__ANDROID__)
+         if (dynamic_lookup_misses_.size() >= 512u) return;
+@@ -7295,8 +7334,9 @@
+             if (guest != exports_.end()) Ret(guest->second.address);
+             else {
+                 const auto thunk = name_to_stub_.find(symbol);
+-                if (thunk == name_to_stub_.end()) LogDynamicLookupMiss("dlsym", symbol);
+-                Ret(thunk == name_to_stub_.end() ? 0u : thunk->second);
++                const bool available = thunk != name_to_stub_.end() && DynamicGlesAvailable(symbol);
++                if (!available) LogDynamicLookupMiss("dlsym", symbol);
++                Ret(available ? thunk->second : 0u);
+             }
+             return true;
+         }
+@@ -7627,8 +7667,9 @@
+             // guest SVC thunk only for extension entry points implemented by this bridge.
+             const std::string symbol = ReadCString(Arg(0), 256);
+             const auto found = name_to_stub_.find(symbol);
+-            if (found == name_to_stub_.end()) LogDynamicLookupMiss("eglGetProcAddress", symbol);
+-            Ret(found == name_to_stub_.end() ? 0u : found->second);
++            const bool available = found != name_to_stub_.end() && DynamicGlesAvailable(symbol);
++            if (!available) LogDynamicLookupMiss("eglGetProcAddress", symbol);
++            Ret(available ? found->second : 0u);
+             return true;
+         }
+ #endif
+--- a/cnr64-wrapper/src/gles_bridge_methods.inc
++++ b/cnr64-wrapper/src/gles_bridge_methods.inc
+@@ -30,12 +30,339 @@
+         return reinterpret_cast<T>(eglGetProcAddress(name));
+     }
+ 
++    bool GuestGl3DPixels(std::uint32_t address, GLsizei w, GLsizei h, GLsizei d,
++                         GLenum format, GLenum type, const void*& pixels) {
++        pixels = nullptr;
++        if (w < 0 || h < 0 || d < 0) return false;
++        const auto* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
++        const bool es3 = version && std::strstr(version, "OpenGL ES 3.");
++        if (es3) {
++            GLint pbo = 0;
++            glGetIntegerv(0x88ef, &pbo); // GL_PIXEL_UNPACK_BUFFER_BINDING
++            if (pbo) { pixels = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(address)); return true; }
++        }
++        if (!address) return true;
++        std::uint64_t components = 0, bytes = 0;
++        switch (format) {
++            case 0x1903: case 0x1906: case 0x1909: case 0x1902: case 0x8d94: components=1; break;
++            case 0x190a: case 0x8227: case 0x8228: components=2; break;
++            case 0x1907: case 0x8d98: components=3; break;
++            case 0x1908: case 0x80e1: case 0x8d99: components=4; break;
++            case 0x84f9: components=1; break;
++            default: return false;
++        }
++        switch (type) {
++            case 0x1400: case 0x1401: bytes=components; break;
++            case 0x1402: case 0x1403: case 0x140b: case 0x8d61: bytes=2*components; break;
++            case 0x1404: case 0x1405: case 0x1406: bytes=4*components; break;
++            case 0x8033: case 0x8034: case 0x8363: bytes=2; break;
++            case 0x84fa: case 0x8368: case 0x8c3b: case 0x8c3e: bytes=4; break;
++            case 0x8dad: bytes=8; break;
++            default: return false;
++        }
++        GLint align=4, row=0, image=0, skipPixels=0, skipRows=0, skipImages=0;
++        glGetIntegerv(GL_UNPACK_ALIGNMENT, &align);
++        if (es3) {
++            glGetIntegerv(0x0cf2, &row); glGetIntegerv(0x806e, &image);
++            glGetIntegerv(0x0cf4, &skipPixels); glGetIntegerv(0x0cf3, &skipRows); glGetIntegerv(0x806d, &skipImages);
++        }
++        if (align <= 0 || align > 8 || row < 0 || image < 0 || skipPixels < 0 || skipRows < 0 || skipImages < 0) return false;
++        const std::uint64_t rowBytes=(std::uint64_t(row ? row : w)*bytes+align-1)/align*align;
++        const std::uint64_t rows=image ? image : h;
++        // Bound every intermediate to the guest address space before multiplication.
++        if (rowBytes > memory_.size() || rows > memory_.size() || (rows && rowBytes > memory_.size()/rows)) return false;
++        const std::uint64_t slice=rowBytes*rows;
++        const std::uint64_t depth=std::uint64_t(skipImages)+(d ? d-1 : 0);
++        const std::uint64_t lastRow=std::uint64_t(skipRows)+(h ? h-1 : 0);
++        if ((depth && slice > memory_.size()/depth) || (lastRow && rowBytes > memory_.size()/lastRow)) return false;
++        const std::uint64_t total=depth*slice+lastRow*rowBytes+(std::uint64_t(skipPixels)+w)*bytes;
++        if (total > memory_.size() || !Fits(address, static_cast<std::size_t>(total))) return false;
++        pixels=memory_.data()+address;
++        return true;
++    }
++
+     bool DispatchGles(const std::string& name) {
+ #if PROJECTV7_FAST_SYMBOL_DISPATCH
+         // All supported graphics exports belong to the GL or EGL namespace.
+         if (name.compare(0, 2, "gl") != 0 && name.compare(0, 3, "egl") != 0) return false;
+ #endif
+         const Pv7DispatchNameKey& fast_name{name};
++        if (fast_name == "glBlendEquation") {
++            glBlendEquation(Arg(0));
++            return true;
++        }
++        if (fast_name == "glCopyTexImage2D") {
++            glCopyTexImage2D(Arg(0), Arg(1), Arg(2), Arg(3), Arg(4), Arg(5), Arg(6), Arg(7));
++            return true;
++        }
++        if (fast_name == "glIsEnabled") {
++            Ret(glIsEnabled(Arg(0)));
++            return true;
++        }
++        if (fast_name == "glValidateProgram") {
++            glValidateProgram(Arg(0));
++            return true;
++        }
++        if (fast_name == "glGetShaderSource") {
++            const GLsizei size = static_cast<GLsizei>(Arg(1));
++            if (size < 0) return false;
++            auto* length = GuestGlArray<GLsizei>(Arg(2));
++            auto* value = GuestGlArray<GLchar>(Arg(3), static_cast<std::size_t>(size));
++            if ((Arg(2) && !length) || (size && !value)) return false;
++            glGetShaderSource(Arg(0), size, length, value);
++            return true;
++        }
++        if (fast_name == "glGetShaderPrecisionFormat") {
++            auto* range = GuestGlArray<GLint>(Arg(2), 2);
++            auto* precision = GuestGlArray<GLint>(Arg(3));
++            if (!range || !precision) return false;
++            glGetShaderPrecisionFormat(Arg(0), Arg(1), range, precision);
++            return true;
++        }
++        if (fast_name == "glGetTexParameteriv") {
++            auto* value = GuestGlArray<GLint>(Arg(2), (Arg(1) == 0x1004 || Arg(1) == 0x8b9d) ? 4 : 1);
++            if (!value) return false;
++            glGetTexParameteriv(Arg(0), Arg(1), value);
++            return true;
++        }
++        if (fast_name == "glGetUniformiv") {
++            auto* value = GuestGlArray<GLint>(Arg(2), 16);
++            if (!value) return false;
++            glGetUniformiv(Arg(0), Arg(1), value);
++            return true;
++        }
++        if (fast_name == "glTexParameterf") {
++            glTexParameterf(Arg(0), Arg(1), ArgFloat(2));
++            return true;
++        }
++        if (fast_name == "glTexParameteriv") {
++            auto* value = GuestGlArray<GLint>(Arg(2), (Arg(1) == 0x1004 || Arg(1) == 0x8b9d) ? 4 : 1);
++            if (!value) return false;
++            glTexParameteriv(Arg(0), Arg(1), value);
++            return true;
++        }
++        if (fast_name == "glVertexAttrib4f") {
++            glVertexAttrib4f(Arg(0), ArgFloat(1), ArgFloat(2), ArgFloat(3), ArgFloat(4));
++            return true;
++        }
++        if (fast_name == "glUniform1uiv") {
++            using Proc = void (*)(GLint, GLsizei, const GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(1));
++            if (count < 0) return false;
++            auto* value = GuestGlArray<GLuint>(Arg(2), static_cast<std::size_t>(count) * 1u);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !value)) return false;
++            proc(Arg(0), count, value);
++            return true;
++        }
++        if (fast_name == "glUniform2uiv") {
++            using Proc = void (*)(GLint, GLsizei, const GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(1));
++            if (count < 0) return false;
++            auto* value = GuestGlArray<GLuint>(Arg(2), static_cast<std::size_t>(count) * 2u);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !value)) return false;
++            proc(Arg(0), count, value);
++            return true;
++        }
++        if (fast_name == "glUniform3uiv") {
++            using Proc = void (*)(GLint, GLsizei, const GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(1));
++            if (count < 0) return false;
++            auto* value = GuestGlArray<GLuint>(Arg(2), static_cast<std::size_t>(count) * 3u);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !value)) return false;
++            proc(Arg(0), count, value);
++            return true;
++        }
++        if (fast_name == "glUniform4uiv") {
++            using Proc = void (*)(GLint, GLsizei, const GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(1));
++            if (count < 0) return false;
++            auto* value = GuestGlArray<GLuint>(Arg(2), static_cast<std::size_t>(count) * 4u);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !value)) return false;
++            proc(Arg(0), count, value);
++            return true;
++        }
++        if (fast_name == "glFramebufferTexture3D") {
++            using Proc = void (*)(GLenum, GLenum, GLenum, GLuint, GLint, GLint);
++            const auto proc = HostGlExtension<Proc>("glFramebufferTexture3DOES");
++            if (!proc) return false;
++            proc(Arg(0), Arg(1), Arg(2), Arg(3), Arg(4), Arg(5));
++            return true;
++        }
++        if (fast_name == "glDebugMessageControlKHR") {
++            using Proc = void (*)(GLenum, GLenum, GLenum, GLsizei, const GLuint*, GLboolean);
++            const GLsizei count = static_cast<GLsizei>(Arg(3));
++            if (count < 0) return false;
++            auto* ids = GuestGlArray<GLuint>(Arg(4), static_cast<std::size_t>(count));
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !ids)) return false;
++            proc(Arg(0), Arg(1), Arg(2), count, ids, Arg(5));
++            return true;
++        }
++        if (fast_name == "glDebugMessageInsertKHR") {
++            using Proc = void (*)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*);
++            const GLsizei length = static_cast<GLsizei>(Arg(4));
++            const GLchar* value = nullptr;
++            if (Arg(5)) {
++                if (length < 0) {
++                    const auto copy = ReadCString(Arg(5), 65536);
++                    if (!Fits(Arg(5), copy.size()+1) || memory_.data()[Arg(5)+copy.size()] != 0) return false;
++                    value = GuestGlArray<GLchar>(Arg(5), copy.size()+1);
++                } else value = GuestGlArray<GLchar>(Arg(5), static_cast<std::size_t>(length));
++                if (!value) return false;
++            }
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (length > 0 && !value)) return false;
++            proc(Arg(0), Arg(1), Arg(2), Arg(3), length, value);
++            return true;
++        }
++        if (fast_name == "glObjectLabelKHR") {
++            using Proc = void (*)(GLenum, GLuint, GLsizei, const GLchar*);
++            const GLsizei length = static_cast<GLsizei>(Arg(2));
++            const GLchar* value = nullptr;
++            if (Arg(3)) {
++                if (length < 0) {
++                    const auto copy = ReadCString(Arg(3), 65536);
++                    if (!Fits(Arg(3), copy.size()+1) || memory_.data()[Arg(3)+copy.size()] != 0) return false;
++                    value = GuestGlArray<GLchar>(Arg(3), copy.size()+1);
++                } else value = GuestGlArray<GLchar>(Arg(3), static_cast<std::size_t>(length));
++                if (!value) return false;
++            }
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (length > 0 && !value)) return false;
++            proc(Arg(0), Arg(1), length, value);
++            return true;
++        }
++        if (fast_name == "glPushDebugGroupKHR") {
++            using Proc = void (*)(GLenum, GLuint, GLsizei, const GLchar*);
++            const GLsizei length = static_cast<GLsizei>(Arg(2));
++            const GLchar* value = nullptr;
++            if (Arg(3)) {
++                if (length < 0) {
++                    const auto copy = ReadCString(Arg(3), 65536);
++                    if (!Fits(Arg(3), copy.size()+1) || memory_.data()[Arg(3)+copy.size()] != 0) return false;
++                    value = GuestGlArray<GLchar>(Arg(3), copy.size()+1);
++                } else value = GuestGlArray<GLchar>(Arg(3), static_cast<std::size_t>(length));
++                if (!value) return false;
++            }
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (length > 0 && !value)) return false;
++            proc(Arg(0), Arg(1), length, value);
++            return true;
++        }
++        if (fast_name == "glLabelObjectEXT") {
++            using Proc = void (*)(GLenum, GLuint, GLsizei, const GLchar*);
++            const GLsizei length = static_cast<GLsizei>(Arg(2));
++            const GLchar* value = nullptr;
++            if (Arg(3)) {
++                if (length < 0) {
++                    const auto copy = ReadCString(Arg(3), 65536);
++                    if (!Fits(Arg(3), copy.size()+1) || memory_.data()[Arg(3)+copy.size()] != 0) return false;
++                    value = GuestGlArray<GLchar>(Arg(3), copy.size()+1);
++                } else value = GuestGlArray<GLchar>(Arg(3), static_cast<std::size_t>(length));
++                if (!value) return false;
++            }
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (length > 0 && !value)) return false;
++            proc(Arg(0), Arg(1), length, value);
++            return true;
++        }
++        if (fast_name == "glGetObjectLabelKHR") {
++            using Proc = void (*)(GLenum, GLuint, GLsizei, GLsizei*, GLchar*);
++            const GLsizei size = static_cast<GLsizei>(Arg(2));
++            if (size < 0) return false;
++            auto* length = GuestGlArray<GLsizei>(Arg(3));
++            auto* value = GuestGlArray<GLchar>(Arg(4), static_cast<std::size_t>(size));
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (Arg(3) && !length) || (size && !value)) return false;
++            proc(Arg(0), Arg(1), size, length, value);
++            return true;
++        }
++        if (fast_name == "glGetObjectLabelEXT") {
++            using Proc = void (*)(GLenum, GLuint, GLsizei, GLsizei*, GLchar*);
++            const GLsizei size = static_cast<GLsizei>(Arg(2));
++            if (size < 0) return false;
++            auto* length = GuestGlArray<GLsizei>(Arg(3));
++            auto* value = GuestGlArray<GLchar>(Arg(4), static_cast<std::size_t>(size));
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (Arg(3) && !length) || (size && !value)) return false;
++            proc(Arg(0), Arg(1), size, length, value);
++            return true;
++        }
++        if (fast_name == "glPopDebugGroupKHR") {
++            using Proc = void (*)();
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc) return false;
++            proc();
++            return true;
++        }
++        if (fast_name == "glBlendBarrierKHR") {
++            using Proc = void (*)();
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc) return false;
++            proc();
++            return true;
++        }
++        if (fast_name == "glBindVertexArrayOES") {
++            using Proc = void (*)(GLuint);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc) return false;
++            proc(Arg(0));
++            return true;
++        }
++        if (fast_name == "glDeleteVertexArraysOES") {
++            using Proc = void (*)(GLsizei, const GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(0));
++            if (count < 0) return false;
++            auto* values = GuestGlArray<GLuint>(Arg(1), static_cast<std::size_t>(count));
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !values)) return false;
++            proc(count, values);
++            return true;
++        }
++        if (fast_name == "glGenVertexArraysOES") {
++            using Proc = void (*)(GLsizei, GLuint*);
++            const GLsizei count = static_cast<GLsizei>(Arg(0));
++            if (count < 0) return false;
++            auto* values = GuestGlArray<GLuint>(Arg(1), static_cast<std::size_t>(count));
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc || (count && !values)) return false;
++            proc(count, values);
++            return true;
++        }
++        if (fast_name == "glCopyImageSubDataEXT") {
++            using Proc = void (*)(GLuint, GLenum, GLint, GLint, GLint, GLint, GLuint, GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc) return false;
++            proc(Arg(0), Arg(1), Arg(2), Arg(3), Arg(4), Arg(5), Arg(6), Arg(7), Arg(8), Arg(9), Arg(10), Arg(11), Arg(12), Arg(13), Arg(14));
++            return true;
++        }
++        if (fast_name == "glPatchParameteriEXT") {
++            using Proc = void (*)(GLenum, GLint);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            if (!proc) return false;
++            proc(Arg(0), Arg(1));
++            return true;
++        }
++        if (fast_name == "glTexImage3DOES") {
++            using Proc = void (*)(GLenum, GLint, GLenum, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            const void* pixels = nullptr;
++            if (!proc || !GuestGl3DPixels(Arg(9), Arg(3), Arg(4), Arg(5), Arg(7), Arg(8), pixels)) return false;
++            proc(Arg(0), Arg(1), Arg(2), Arg(3), Arg(4), Arg(5), Arg(6), Arg(7), Arg(8), pixels);
++            return true;
++        }
++        if (fast_name == "glTexSubImage3DOES") {
++            using Proc = void (*)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void*);
++            const auto proc = HostGlExtension<Proc>(name.c_str());
++            const void* pixels = nullptr;
++            if (!proc || !GuestGl3DPixels(Arg(10), Arg(5), Arg(6), Arg(7), Arg(8), Arg(9), pixels)) return false;
++            proc(Arg(0), Arg(1), Arg(2), Arg(3), Arg(4), Arg(5), Arg(6), Arg(7), Arg(8), Arg(9), pixels);
++            return true;
++        }
+         if (fast_name == "glDiscardFramebufferEXT") {
+             using Proc = void (*)(GLenum, GLsizei, const GLenum*);
+             const GLsizei count = static_cast<GLsizei>(Arg(1));
+@@ -559,7 +886,16 @@
+                 Ret(0);
+                 return true;
+             }
+-            const std::string copy(reinterpret_cast<const char*>(value));
++            std::string copy(reinterpret_cast<const char*>(value));
++            if (token == GL_EXTENSIONS) {
++                std::string padded = " " + copy + " ";
++                const std::string unavailable = " GL_KHR_debug ";
++                const auto pos = padded.find(unavailable);
++                if (pos != std::string::npos) {
++                    padded.replace(pos, unavailable.size(), " ");
++                    copy = padded.substr(1, padded.size()-2);
++                }
++            }
+             const std::uint32_t guest = Allocate(copy.size() + 1, 1);
+             if (guest == 0 || !WriteCString(guest, copy)) {
+                 Ret(0);

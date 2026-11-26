@@ -1,0 +1,71 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -9717,8 +9717,11 @@
+         jit.Regs()[15] = function & ~1u;
+         jit.SetCpsr((function & 1u) ? 0x20u : 0u);
+ 
+-        std::uint32_t previous_pc = 0xffffffffu;
+-        int same_pc_slices = 0;
++        std::array<std::uint32_t, 16> previous_regs{};
++        std::uint32_t previous_cpsr = 0;
++        bool previous_valid = false;
++        int unchanged_slices = 0;
++        bool stopped_for_no_progress = false;
+         std::size_t cache_restarts = 0;
+         int slices = 0;
+         for (; slices < kCtorMaxSlices; ++slices) {
+@@ -9749,22 +9752,36 @@
+                 jit.ClearHalt();
+                 if (size != 0) env.InvalidateTranslatedCodeRange(start, size);
+                 ++cache_restarts;
+-                previous_pc = 0xffffffffu;
+-                same_pc_slices = 0;
++                previous_valid = false;
++                unchanged_slices = 0;
+                 continue;
+             }
+             if (Dynarmic::Has(halt_reason, Dynarmic::HaltReason::CacheInvalidation)) {
+                 jit.ClearHalt();
+                 ++cache_restarts;
+-                previous_pc = 0xffffffffu;
+-                same_pc_slices = 0;
++                previous_valid = false;
++                unchanged_slices = 0;
+                 continue;
+             }
+-            const std::uint32_t pc = jit.Regs()[15];
+-            if (pc == previous_pc) ++same_pc_slices;
+-            else same_pc_slices = 0;
+-            previous_pc = pc;
+-            if (same_pc_slices >= 2) break;
++            // A long loop can reach the same PC at successive tick boundaries
++            // while making progress in its register state. Keep the hard slice
++            // budget, and only stop early for repeated unchanged CPU state.
++            const auto regs = jit.Regs();
++            const auto cpsr = jit.Cpsr();
++            if (previous_valid && regs == previous_regs && cpsr == previous_cpsr)
++                ++unchanged_slices;
++            else
++                unchanged_slices = 0;
++#if defined(__ANDROID__)
++            if (previous_valid && regs[15] == previous_regs[15] && regs != previous_regs)
++                __android_log_print(ANDROID_LOG_INFO, "PV7HOST",
++                    "CTOR repeated PC with register progress %s[%zu] slice=%d pc=%08x r1=%08x previous_r1=%08x",
++                    owner, index, slices, regs[15], regs[1], previous_regs[1]);
++#endif
++            previous_regs = regs;
++            previous_cpsr = cpsr;
++            previous_valid = true;
++            if (unchanged_slices >= 2) { stopped_for_no_progress = true; break; }
+         }
+ 
+         const bool ok = env.saw_return && !env.failed && !env.premature_return && env.first_thunk.empty();
+@@ -9793,7 +9810,7 @@
+                        << " 0x" << env.code_read_last << std::dec << "\n";
+             }
+             if (!env.saw_return && !env.failed && !env.premature_return && env.first_thunk.empty()) {
+-                report << "      constructor budget exhausted: pc=0x" << std::hex << jit.Regs()[15]
++                report << (stopped_for_no_progress ? "      constructor unchanged CPU state: pc=0x" : "      constructor budget exhausted: pc=0x") << std::hex << jit.Regs()[15]
+                        << " lr=0x" << jit.Regs()[14] << std::dec << "\n";
+             }
+ #if defined(PROJECTV7_DEV_DIAGNOSTICS) && PROJECTV7_DEV_DIAGNOSTICS

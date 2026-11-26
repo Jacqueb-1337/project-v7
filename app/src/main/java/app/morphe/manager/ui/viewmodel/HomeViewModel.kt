@@ -1989,7 +1989,7 @@ class HomeViewModel(
 
             // Verify APK signature against the expected signatures declared in the patch bundle.
             // GET_SIGNING_CERTIFICATES (API 28+) is required for reliable archive signature reads.
-            // On Android 8ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“10 the legacy GET_SIGNATURES path cannot read signatures from
+            // On Android 8ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ10 the legacy GET_SIGNATURES path cannot read signatures from
             // archive files correctly, so we skip verification there to avoid false-blocking users.
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
                 val expectedSignatures = bundleAppMetadataFlow.value[selectedApp.packageName]?.signatures
@@ -2072,8 +2072,8 @@ class HomeViewModel(
         }
 
         // If the version is experimental, show the appropriate warning:
-        // - Experimental mode ON ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ ExperimentalVersionWarningDialog
-        // - Experimental mode OFF ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ UnsupportedVersionWarningDialog
+        // - Experimental mode ON ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ ExperimentalVersionWarningDialog
+        // - Experimental mode OFF ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ UnsupportedVersionWarningDialog
         if (isVersionExperimental && !allowIncompatible) {
             pendingSelectedApp = selectedApp
             val state = unsupportedVersionState(selectedApp, isExperimental = true)
@@ -2086,7 +2086,7 @@ class HomeViewModel(
             return
         }
 
-        // Patches exist and are applicable ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ proceed.
+        // Patches exist and are applicable ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ proceed.
         // For root-capable devices, we must know the patch mode BEFORE patching
         // because it is the install target patches declare their availability against.
         // Show the pre-patching mode dialog so the user can choose.
@@ -2264,7 +2264,7 @@ class HomeViewModel(
                         val seenForBundle = withContext(Dispatchers.IO) {
                             patchSelectionRepository.getSeenPatches(configurationKey, bundle.uid)
                         }
-                        // No snapshot yet ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ first time opening expert mode for this package,
+                        // No snapshot yet ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ first time opening expert mode for this package,
                         // nothing to flag as new.
                         val seen = seenForBundle ?: return@forEach
                         val currentPatchNames = bundle.patches.map { it.name }.toSet()
@@ -2439,7 +2439,18 @@ class HomeViewModel(
                     abis = apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
                     engine = apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
                 )
-                Triple(catalog, target, sourceDisplayName)
+                val auditedTarget = if (target.engine?.id == "unity" && apkFile != null) {
+                    val audit = runCatching {
+                        val handlers = app.assets.open("pv7/runtime-import-handlers.txt")
+                            .bufferedReader().useLines { lines ->
+                                lines.map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+                            }
+                        check(handlers.isNotEmpty()) { "Missing runtime coverage manifest" }
+                        Pv7RuntimeImportAuditor.inspectUnity(apkFile, handlers)
+                    }.getOrElse { Pv7RuntimeAudit(notes = listOf("Runtime coverage manifest unavailable.")) }
+                    target.copy(runtimeAudit = audit)
+                } else target
+                Triple(catalog, auditedTarget, sourceDisplayName)
             }
 
             val (catalog, target, sourceDisplayName) = sourceContext
@@ -2983,7 +2994,7 @@ class HomeViewModel(
         val bundleScope = expertModeBundles.mapTo(mutableSetOf()) { it.uid }
         val finalPatches = expertModeRunSelection
         val finalOptions = expertModeOptions
-        // Strip UI-only empty strings (fields cleared via ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢) so the patcher engine
+        // Strip UI-only empty strings (fields cleared via ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢) so the patcher engine
         // receives null / no key for those options and falls back to its own default,
         // rather than receiving a literal empty string.
         val patcherOptions = finalOptions.sanitizeForPatcher()
