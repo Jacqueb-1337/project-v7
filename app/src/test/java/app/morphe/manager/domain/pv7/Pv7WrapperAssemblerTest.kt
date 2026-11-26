@@ -1,4 +1,4 @@
-﻿package app.morphe.manager.domain.pv7
+package app.morphe.manager.domain.pv7
 
 import android.content.res.AssetManager
 import com.reandroid.apk.ApkModule
@@ -92,7 +92,18 @@ class Pv7WrapperAssemblerTest {
                 assertTrue("android.permission.WRITE_EXTERNAL_STORAGE" in manifest.usesPermissions)
                 assertTrue("android.permission.READ_EXTERNAL_STORAGE" in manifest.usesPermissions)
                 assertTrue("android.permission.RECORD_AUDIO" in manifest.usesPermissions)
+                assertTrue("android.permission.POST_NOTIFICATIONS" in manifest.usesPermissions)
 
+                val recovery = assertNotNull(manifest.listApplicationElementsByTag("activity")
+                    .singleOrNull { com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+                        .getAndroidNameValue(it) == "app.projectv7.wrapper.GuestRestartActivity" })
+                assertEquals(":pv7_recovery", recovery.searchAttributeByName("process")?.valueAsString)
+                val mainActivity = assertNotNull(manifest.listApplicationElementsByTag("activity")
+                    .singleOrNull { com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+                        .getAndroidNameValue(it) == "app.projectv7.wrapper.MainActivity" })
+                assertEquals(mainActivity.searchAttributeByName("screenOrientation")?.data
+                    ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND,
+                    recovery.searchAttributeByName("screenOrientation")?.data)
                 val provider = manifest.listApplicationElementsByTag("provider")
                     .singleOrNull {
                         com.reandroid.arsc.chunk.xml.AndroidManifestBlock.getAndroidNameValue(it) ==

@@ -34,3 +34,9 @@ jobs:
       - name: Test legacy Cocos ELF inventory
         shell: bash
         run: python3 -m unittest discover -s scripts/tests -p 'test_inspect_cocos_apk.py'
+
+      - name: Validate shared supervisor and CNR payload
+        shell: bash
+        run: |
+          python3 scripts/verify_storage_abis.py
+          python3 scripts/validate_cnr_recommended.py

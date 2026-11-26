@@ -147,7 +147,7 @@ class Pv7WrapperAssembler {
             config.versionName?.takeIf { it.isNotBlank() }?.let(manifest::setVersionName)
             config.versionCode?.takeIf { it > 0 }?.let(manifest::setVersionCode)
 
-            config.requestedPermissions
+            (config.requestedPermissions + "android.permission.POST_NOTIFICATIONS")
                 .filter { it.isNotBlank() }
                 .forEach { permission ->
                     if (manifest.getUsesPermission(permission) == null) {
@@ -155,6 +155,7 @@ class Pv7WrapperAssembler {
                     }
                 }
             applyDocumentsProviders(manifest, selectedModules, config.packageName)
+            applyGuestRecoveryActivity(manifest)
 
             replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
             replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
@@ -185,6 +186,29 @@ class Pv7WrapperAssembler {
         } finally {
             runCatching { module.close() }
         }
+    }
+
+    private fun applyGuestRecoveryActivity(manifest: AndroidManifestBlock) {
+        val name = "app.projectv7.wrapper.GuestRestartActivity"
+        val activities = manifest.listApplicationElementsByTag("activity")
+        val main = activities.firstOrNull {
+            AndroidManifestBlock.getAndroidNameValue(it) == "app.projectv7.wrapper.MainActivity"
+        }
+        val orientation = main?.searchAttributeByName("screenOrientation")
+        val activity = activities.firstOrNull {
+            AndroidManifestBlock.getAndroidNameValue(it) == name
+        } ?: manifest.orCreateApplicationElement.newElement("activity")
+        // Match the host's manifest orientation before Android draws the recovery window.
+        // An unspecified host uses behind instead of forcing portrait.
+        activity.getOrCreateAndroidAttribute("screenOrientation", android.R.attr.screenOrientation).apply {
+            setValueType(com.reandroid.arsc.value.ValueType.DEC)
+            setData(orientation?.data ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND)
+        }
+        activity.getOrCreateAndroidAttribute("name", android.R.attr.name).setValueAsString(name)
+        activity.getOrCreateAndroidAttribute("exported", android.R.attr.exported).setValueAsBoolean(false)
+        activity.getOrCreateAndroidAttribute("process", android.R.attr.process).setValueAsString(":pv7_recovery")
+        activity.getOrCreateAndroidAttribute("noHistory", android.R.attr.noHistory).setValueAsBoolean(true)
+        activity.getOrCreateAndroidAttribute("excludeFromRecents", android.R.attr.excludeFromRecents).setValueAsBoolean(true)
     }
 
     private fun applyDocumentsProviders(
