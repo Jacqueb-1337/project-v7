@@ -16,9 +16,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jacqueb-1337/project-v7/releases/latest"><strong>⬇ Download latest release</strong></a>
-  &nbsp; · &nbsp;
-  <a href="#support-development"><strong>♥ Support development</strong></a>
+  <a href="https://github.com/Jacqueb-1337/project-v7/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/Download-Latest_Release-2563EB?style=for-the-badge&amp;logo=android&amp;logoColor=white"></a>
+  <a href="https://ko-fi.com/jacqueb1337"><img alt="Support PV7 Development on Ko-fi" src="https://img.shields.io/badge/Support_PV7_Development-Donate_on_Ko--fi-FF5E5B?style=for-the-badge&amp;logo=kofi&amp;logoColor=white"></a>
+</p>
+
+<p align="center"><strong>Help bring more classic games back to life.</strong><br>
+Your donations help fund compatibility research, new game support, and testing on modern Android devices.<br>
+<a href="#support-development">Learn how your support helps.</a>
 </p>
 
 <p align="center">
@@ -199,13 +203,27 @@ Please include enough information to reproduce what you tested, including the ap
 
 ## Support development
 
-### Help keep classic games alive
+<h3 align="center">Help keep classic games alive.</h3>
 
-Project V7 is independently developed, free and open source. Optional contributions help fund continued development, compatibility research, testing on additional devices, and the preservation of legacy Android games.
+<p align="center">
+  Project V7 is independently developed, free and open source.<br>
+  If PV7 has helped you play a game you thought was lost, consider helping fund its continued development.
+</p>
 
-Every contribution helps. Donations are entirely optional and Project V7 will remain free and open source. Donations do not buy exclusive features or guarantee support for a particular game.
+<p align="center">
+  <a href="https://ko-fi.com/jacqueb1337"><img alt="Support PV7 Development on Ko-fi" src="https://img.shields.io/badge/Support_PV7_Development-Donate_on_Ko--fi-FF5E5B?style=for-the-badge&amp;logo=kofi&amp;logoColor=white"></a>
+</p>
 
-**A donation link will be added here once the funding page is set up.** In the meantime, testing games, reporting compatibility issues, contributing fixes, and starring or sharing the project are also great ways to support development.
+Your contributions help support:
+
+- **New game compatibility** and research into additional game engines and ARM32 runtime behavior.
+- **Development and testing** on more Android devices and OS versions.
+- **Performance and stability improvements** to make supported games more enjoyable.
+- **Game preservation** and the open-source tools that make it possible.
+
+Every contribution helps. Donations are entirely optional, and Project V7 will remain free and open source. Donations do not buy exclusive features or guarantee support for a particular game.
+
+Not able to donate? Testing games, reporting compatibility issues, contributing fixes, and starring or sharing the project are also valuable ways to support development.
 
 ## Credits
 
