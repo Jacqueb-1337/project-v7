@@ -49,6 +49,12 @@ final class GuestCompatibilityEvents {
         if(pending.isEmpty()||now<nextNotice)return null;
         Event e=pending.removeFirst();nextNotice=now+INTERVAL;return e;
     }
+    static String issueReport(String pkg,String version,String backend,String android,String model,Event error){
+        return "PV7 compatibility report\nGame: "+clean(pkg,180)+"\nVersion code: "+clean(version,32)
+            +"\nRuntime: "+clean(backend,32)+"\nAndroid: "+clean(android,32)+"\nDevice: "+clean(model,80)
+            +"\nError: "+(error==null?"Guest stopped responding; no specific runtime fault recorded.":error.message())
+            +"\n\nSteps to reproduce:\n";
+    }
     static String extractFault(String tail){
         if(tail==null)return null;
         String match=null;

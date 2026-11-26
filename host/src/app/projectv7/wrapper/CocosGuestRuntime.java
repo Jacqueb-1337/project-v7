@@ -43,8 +43,12 @@ public final class CocosGuestRuntime {
         GuestCompatibilityEvents.Event e=GuestCompatibilityEvents.report("Cocos2d-x",signature,detail,false);
         if(e!=null) MainActivity.persistCompatibilityEvent(owner,e);
     }
+    public static boolean requestCompatibility(String ownerClass,String name,String sig){
+        Activity owner=active;
+        return owner instanceof MainActivity && ((MainActivity)owner).requestCompatibilityDecision(ownerClass,name,sig);
+    }
     static void reset(boolean bestPark) { nativePrepare(bestPark); }
-    static void stop() { if (loaded) nativeCancel(); }
+    static void stop() { if (loaded) nativeCancel(); Activity owner=active; if(owner instanceof MainActivity)((MainActivity)owner).cancelCompatibilityDecision(); }
     static void background(boolean paused) { if (loaded) nativeSetPaused(paused); }
     static long frames() { return loaded ? nativeFrameCount() : 0; }
     static long presents() { return loaded ? nativePresentCount() : 0; }

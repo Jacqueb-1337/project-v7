@@ -167,10 +167,15 @@ public final class MainActivity extends Activity {
     private TextView guestStatus;
     private ProgressBar guestSpinner;
     private Button guestAction;
+    private Button copyRecoveryReport, copyBannerReport;
+    private GuestCompatibilityCard compatibilityCard;
+    private volatile GuestCompatibilityEvents.Event lastCompatibilityError;
+    private volatile GuestCompatibilityDecision pendingCompatibility;
+    private final java.util.Set<String> rememberedCompatibility=java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private boolean launchReady;
     private boolean flagsOpen;
     private boolean compatConfigured;
-    private boolean restartingGuest;
+    private volatile boolean restartingGuest;
     private boolean heartbeatAvailable = true;
     private boolean restartRequestAvailable = true;
     private volatile boolean guestPreparationFailed;
@@ -290,6 +295,11 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-2, -2);
         actionParams.topMargin = dp(12);
         guestOverlay.addView(guestAction, actionParams);
+        copyRecoveryReport = new Button(this);
+        copyRecoveryReport.setText("Copy error report");
+        copyRecoveryReport.setVisibility(View.GONE);
+        copyRecoveryReport.setOnClickListener(v -> copyGuestError());
+        guestOverlay.addView(copyRecoveryReport);
         rootLayout.addView(guestOverlay, new FrameLayout.LayoutParams(-1, -1));
         startupStageCaption = new TextView(this);
         startupStageCaption.setTextColor(0xffeeeeee);
@@ -314,6 +324,10 @@ public final class MainActivity extends Activity {
         recover.setText("Restart guest");
         recover.setOnClickListener(v -> restartGuestProcess("manual recovery"));
         recoveryBanner.addView(recover);
+        copyBannerReport = new Button(this);
+        copyBannerReport.setText("Copy error report");
+        copyBannerReport.setOnClickListener(v -> copyGuestError());
+        recoveryBanner.addView(copyBannerReport);
         rootLayout.addView(recoveryBanner,new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL));
         recoveryBanner.setVisibility(View.GONE);
         storageCard=new GuestStorageRecoveryCard(this,this::pickRecoveryObb,this::openRecoveryStorage,
@@ -321,6 +335,10 @@ public final class MainActivity extends Activity {
         FrameLayout.LayoutParams cardParams=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
         cardParams.setMargins(dp(16),0,dp(16),dp(12));
         rootLayout.addView(storageCard,cardParams);
+        compatibilityCard=new GuestCompatibilityCard(this);
+        FrameLayout.LayoutParams decisionParams=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        decisionParams.setMargins(dp(16),0,dp(16),dp(12));
+        rootLayout.addView(compatibilityCard,decisionParams);
         setContentView(rootLayout);
     }
 
@@ -342,6 +360,59 @@ public final class MainActivity extends Activity {
             Log.w("PV7COMPAT","Compatibility journal unavailable",unavailable);
         }
     }
+    void cancelCompatibilityDecision(){
+        GuestCompatibilityDecision d=pendingCompatibility;
+        if(d!=null)d.resolve(false);
+    }
+    boolean requestCompatibilityDecision(String cls,String name,String sig){
+        String fallback=GuestCompatibilityDecision.fallback(name,sig);
+        if(fallback==null||!activityResumed||restartingGuest||restartWhenStopped||
+            android.os.Looper.myLooper()==android.os.Looper.getMainLooper())return false;
+        String key=cls+"."+name+sig;
+        if(rememberedCompatibility.contains(key))return true;
+        GuestCompatibilityDecision d=new GuestCompatibilityDecision(key,fallback);
+        if(pendingCompatibility!=null)return false;
+        pendingCompatibility=d;
+        GuestCompatibilityEvents.Event error=new GuestCompatibilityEvents.Event("Cocos2d-x",key,
+            "Unresolved static JNI method. Proposed fallback: "+fallback,true);
+        java.util.concurrent.atomic.AtomicBoolean remember=new java.util.concurrent.atomic.AtomicBoolean();
+        runOnUiThread(()->{
+            if(!d.pending()||!activityResumed||restartingGuest||restartWhenStopped||isFinishing()||isDestroyed()){d.resolve(false);return;}
+            try{
+                compatibilityCard.showDecision(d,()->{remember.set(compatibilityCard.remember());d.resolve(true);},
+                    ()->d.resolve(false),()->copyGuestError(error));
+            }catch(RuntimeException unavailable){d.resolve(false);}
+        });
+        boolean allow=d.await(120000);
+        pendingCompatibility=null;
+        runOnUiThread(()->{
+            lastGuestProgress=SystemClock.elapsedRealtime();
+            compatibilityCard.hideDecision(d);
+        });
+        if(allow&&remember.get())rememberedCompatibility.add(key);
+        if(allow){
+            GuestCompatibilityEvents.Event event=GuestCompatibilityEvents.report("Cocos2d-x",key,
+                "User approved fallback: "+fallback,false);
+            if(event!=null)persistCompatibilityEvent(this,event);
+        }else lastCompatibilityError=new GuestCompatibilityEvents.Event("Cocos2d-x",key,"Fallback declined, cancelled, or timed out; guest stopped.",true);
+        return allow;
+    }
+
+    private void copyGuestError() {
+        copyGuestError(lastCompatibilityError);
+    }
+    private void copyGuestError(GuestCompatibilityEvents.Event error) {
+        String report=GuestCompatibilityEvents.issueReport(
+            hostProperties.getProperty("guest.package",getPackageName()),
+            hostProperties.getProperty("guest.versionCode","unknown"),
+            cocosBackend?"Cocos2d-x":"Unity",
+            Build.VERSION.RELEASE,Build.MODEL,error);
+        android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+        if(clipboard==null)return;
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("PV7 error report",report));
+        android.widget.Toast.makeText(this,"Error report copied",android.widget.Toast.LENGTH_SHORT).show();
+    }
+
     private void showCompatibilityNotice(long now) {
         GuestCompatibilityEvents.Event e=GuestCompatibilityEvents.poll(now);
         if(e==null)return;
@@ -764,6 +835,7 @@ public final class MainActivity extends Activity {
         GuestStorageDiagnostics.Failure storageFailure=GuestStorageDiagnostics.latestFailure(SystemClock.elapsedRealtime());
         if(storageFailure!=null){showStorageRecovery(storageFailure);return;}
         showingRecovery = true;
+        copyRecoveryReport.setVisibility(View.VISIBLE);
         storageBlackWarning=false;
         blackFrameProbe.reset();
         startupStageCaption.setVisibility(View.GONE);
@@ -783,6 +855,7 @@ public final class MainActivity extends Activity {
     }
 
     private void pollGuest() {
+        if(pendingCompatibility!=null){lastGuestProgress=SystemClock.elapsedRealtime();return;}
         if(storageRecoveryActive)return;
         if (restartRequestAvailable && launchReady) {
             try {
@@ -816,6 +889,7 @@ public final class MainActivity extends Activity {
                     showingRecovery = false;
                     recoveryBanner.setVisibility(View.GONE);
                     if(!storageBlackWarning)guestOverlay.setVisibility(View.GONE);
+                    copyRecoveryReport.setVisibility(View.GONE);
                 }
                 sampleStorageBlackFrame(now);
                 performanceOverlay.update(count,gameBufferWidth,gameBufferHeight,guestLoopReached&&!showingRecovery);
@@ -958,7 +1032,7 @@ public final class MainActivity extends Activity {
                 Log.i("PV7HOST", "PV7JAVA touch action=" + event.getActionMasked()
                         + " x=" + event.getX() + " y=" + event.getY()
                         + " view=" + renderSurface.getWidth() + "x" + renderSurface.getHeight());
-                if ((!sawGuestFrame && heartbeatAvailable) || restartingGuest || pointerCount <= 0) return true;
+                if (pendingCompatibility!=null || (!sawGuestFrame && heartbeatAvailable) || restartingGuest || pointerCount <= 0) return true;
                 if (cocosBackend) { CocosGuestRuntime.touch(event,renderSurface.getWidth(),renderSurface.getHeight()); return true; }
                 int[] ids = new int[pointerCount];
                 float[] xs = new float[pointerCount];
@@ -1076,6 +1150,7 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         Log.i("PV7HOST", "PV7LIFE onPause running=" + baselineRunning);
         activityResumed = false;
+        cancelCompatibilityDecision();
         if (!isFinishing()) updateSupervisorNotification(true);
         setGuestBackgrounded(true);
         supervisor.removeCallbacks(guestWatchdog);
@@ -1089,6 +1164,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         activityResumed = false;
+        cancelCompatibilityDecision();
         Thread importWorker=obbImportWorker;
         if(importWorker!=null)importWorker.interrupt();
         supervisor.removeCallbacksAndMessages(null);
@@ -1376,7 +1452,7 @@ public final class MainActivity extends Activity {
             guestPreparationRunning = true;
             guestPreparationFailed = false;
             GuestStorageDiagnostics.reset();
-            GuestCompatibilityEvents.reset();
+            GuestCompatibilityEvents.reset();lastCompatibilityError=null;rememberedCompatibility.clear();
             storageProbeGeneration++;
             blackSamplePending=false;
             storageBlackWarning=false;
@@ -1596,7 +1672,7 @@ public final class MainActivity extends Activity {
                             GuestStorageDiagnostics.explicitRuntimeFault(fault);
                         GuestCompatibilityEvents.Event event=GuestCompatibilityEvents.report("Cocos2d-x",fault,
                             "Guest stopped safely; this operation cannot be emulated yet.",true);
-                        if(event!=null)persistCompatibilityEvent(this,event);
+                        if(event!=null){if(lastCompatibilityError==null)lastCompatibilityError=event;persistCompatibilityEvent(this,event);}
                     }
                 } catch(java.io.IOException ignored) {}
             }
