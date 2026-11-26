@@ -37,6 +37,12 @@ public final class CocosGuestRuntime {
         expansionPath = expansion.getAbsolutePath();
         Log.i(TAG,"Original expansion exists="+expansion.isFile());
     }
+    public static void reportOptionalCompatibility(String signature,String detail) {
+        Activity owner=active;
+        if(owner==null)return;
+        GuestCompatibilityEvents.Event e=GuestCompatibilityEvents.report("Cocos2d-x",signature,detail,false);
+        if(e!=null) MainActivity.persistCompatibilityEvent(owner,e);
+    }
     static void reset(boolean bestPark) { nativePrepare(bestPark); }
     static void stop() { if (loaded) nativeCancel(); }
     static void background(boolean paused) { if (loaded) nativeSetPaused(paused); }
