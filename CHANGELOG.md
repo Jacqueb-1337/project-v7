@@ -1,3 +1,10 @@
+# [1.44.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.1...v1.44.0) (2026-11-26)
+
+
+### Features
+
+* experimental game catalog opt-in and download progress ([b59d153](https://github.com/Jacqueb-1337/project-v7/commit/b59d1532c676deff43bbbad9c25fd78c7f60035e))
+
 ## [1.43.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.0...v1.43.1) (2026-11-26)
 
 
