@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T03:24:53",
-  "description": "## [1.39.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.2...v1.39.3) (2026-11-26)\n\n\n### Bug Fixes\n\n* **pv7:** remove Cocos setjmp cap and report compatibility events ([6a31294](https://github.com/Jacqueb-1337/project-v7/commit/6a3129431020586702a8ac546dc2c8a1bd6928ab))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.3/project-v7-patcher-1.39.3.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.3/project-v7-patcher-1.39.3.apk.asc",
-  "version": "1.39.3"
+  "created_at": "2026-11-26T03:58:50",
+  "description": "# [1.40.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.3...v1.40.0) (2026-11-26)\n\n\n### Features\n\n* **pv7:** searchable game catalog and tested Best Park compatibility ([#31](https://github.com/Jacqueb-1337/project-v7/issues/31)) ([1eeffa0](https://github.com/Jacqueb-1337/project-v7/commit/1eeffa08141a7dbd7a0aeb1af67aee3183f63b65))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.40.0/project-v7-patcher-1.40.0.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.40.0/project-v7-patcher-1.40.0.apk.asc",
+  "version": "1.40.0"
 }
