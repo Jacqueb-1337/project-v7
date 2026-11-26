@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T05:59:26",
-  "description": "# [1.42.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.41.0...v1.42.0) (2026-11-26)\n\n\n### Features\n\n* **supervisor:** interactive compatibility recovery and error reports ([3b0e1fd](https://github.com/Jacqueb-1337/project-v7/commit/3b0e1fd43e307449985b04abdb714a20a4a24acc))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.42.0/project-v7-patcher-1.42.0.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.42.0/project-v7-patcher-1.42.0.apk.asc",
-  "version": "1.42.0"
+  "created_at": "2026-11-26T19:32:31",
+  "description": "# [1.43.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.42.0...v1.43.0) (2026-11-26)\n\n\n### Features\n\n* Experimental Unity 5 support for Guns and Spurs ([cc04dd6](https://github.com/Jacqueb-1337/project-v7/commit/cc04dd66875480e4280ec78dd6f87189f868645c))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.43.0/project-v7-patcher-1.43.0.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.43.0/project-v7-patcher-1.43.0.apk.asc",
+  "version": "1.43.0"
 }
