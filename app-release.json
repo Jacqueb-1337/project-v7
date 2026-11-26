@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T02:42:46",
-  "description": "## [1.39.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.0...v1.39.1) (2026-11-26)\n\n\n### Bug Fixes\n\n* **pv7:** recognize Best Park 1.2.1 and require JNI compatibility ([b8c7e8c](https://github.com/Jacqueb-1337/project-v7/commit/b8c7e8cc712a1815019e22b0ad9c527e09247516))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.1/project-v7-patcher-1.39.1.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.1/project-v7-patcher-1.39.1.apk.asc",
-  "version": "1.39.1"
+  "created_at": "2026-11-26T03:06:04",
+  "description": "## [1.39.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.1...v1.39.2) (2026-11-26)\n\n\n### Bug Fixes\n\n* **pv7:** prevent Best Park combat exit and diagnose missing expansion data ([d5e0ccd](https://github.com/Jacqueb-1337/project-v7/commit/d5e0ccdd5de0dc7ebd2017eb20c6d445e7c9e0fc))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.2/project-v7-patcher-1.39.2.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.39.2/project-v7-patcher-1.39.2.apk.asc",
+  "version": "1.39.2"
 }
