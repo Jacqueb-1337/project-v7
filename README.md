@@ -1,15 +1,61 @@
-# Project V7 - Android 32-bit Compatibility Patcher
+<p align="center">
+  <img src="docs/project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo" width="132">
+</p>
 
-<p align="center"><img src="docs/project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo" width="180"></p>
+<h1 align="center">Project V7</h1>
 
-> [!WARNING]
-> **Project V7 is experimental. Cops N Robbers 3.0.2 is currently the only officially supported game.**
->
-> Project V7 is built around **32-bit Unity 4.x-era games**, with **Unity 4.6 Mono** as its current tested baseline. Other Unity games from that era may be compatible in theory, but they are **untested** and should not be expected to work out of the box. Substantial compatibility and runtime work remains, and other engines require their own backends.
->
-> A catalog entry or experimental profile does **not** mean a game is confirmed working.
+<h3 align="center">Old games. New devices.</h3>
 
-Project V7 is an Android APK patcher and compatibility project for getting older 32-bit Android apps and games running on newer 64-bit-only Android devices.
+<p align="center">
+  Run legacy <strong>32-bit Android apps and games</strong> on modern <strong>64-bit-only Android devices</strong>.<br>
+  Standalone APKs. No root required. No separate virtual machine.
+</p>
+
+<p align="center">
+  <code>Android</code> &nbsp; <code>ARM32 → ARM64</code> &nbsp; <code>GPL-3.0</code> &nbsp; <code>Open source</code>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Jacqueb-1337/project-v7/releases/latest"><strong>⬇ Download latest release</strong></a>
+  &nbsp; · &nbsp;
+  <a href="#support-development"><strong>♥ Support development</strong></a>
+</p>
+
+<p align="center">
+  <a href="#supported-games">Supported games</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="https://github.com/Jacqueb-1337/project-v7/issues">Roadmap &amp; issues</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+## Bring your childhood games back to life
+
+Project V7 is an open-source Android APK patcher and compatibility framework for running older 32-bit Android apps and games on newer 64-bit-only devices. It packages original ARM32 code within a standalone ARM64 Android host using a translation runtime and modular compatibility fixes.
+
+## Supported games
+
+| Game | Tested version | Engine | Status |
+| :--- | :--- | :--- | :--- |
+| <img src="catalog/apps/icons/com.joydo.minestrikenew.png" width="44" alt=""> **Cops N Robbers** | 3.0.2 / 3.0.2-cnr1 | Unity 4.6.1f1 (Mono) | Gameplay verified |
+| <img src="catalog/apps/icons/com.turner.bestparkintheuniverse.png" width="44" alt=""> **Regular Show: Best Park in the Universe** | 1.2.1 (version code 16) | Cocos2d-x | Gameplay verified |
+
+Best Park requires the original matching APK and OBB. Its 1.2.0-labeled experimental profile is not independently gameplay-tested and accepts only a matching verified native library. Full campaign, legacy online services and device-wide compatibility have not been verified.
+
+> [!NOTE]
+> Project V7 is under active development. Only specifically tested game versions are confirmed playable. Other apps and games may require additional runtime work or compatibility modules; a catalog entry or experimental profile is not a guarantee of compatibility.
+
+## Getting started
+
+1. Download and install the [latest Project V7 Android Patcher](https://github.com/Jacqueb-1337/project-v7/releases/latest).
+2. Choose a supported game and select its original APK (or an installed copy where supported).
+3. Select the recommended compatibility modules and patch the APK.
+4. Install the resulting standalone APK. Supply any required original OBB through [PV7 Game Storage](docs/guest-storage.md).
+
+Have a game you want to revive? [Open a compatibility request](https://github.com/Jacqueb-1337/project-v7/issues) with its exact version, package name and engine if known.
+
+## About Project V7
 
 It started with one very specific problem: Cops N Robbers 3.0.2 is a 32-bit ARMv7 Unity game, and modern 64-bit-only phones cannot run it normally. Project V7 grew out of the work to make that game usable again without turning the whole phone into an old Android environment.
 
@@ -28,9 +74,7 @@ Project V7 is not a full Android emulator or virtual machine. For apps that need
 
 ## Current status
 
-**Project V7 is still experimental, and Cops N Robbers 3.0.2 is its only officially supported game.** Its tested compatibility profile is included in the Project V7 catalog. This does not guarantee identical results on every device.
-
-The current runtime is designed for **legacy 32-bit Unity 4.x-era games**, particularly Unity 4.6 Mono, so other games built with similar technology are reasonable candidates for future compatibility. **That is a technical possibility, not a compatibility guarantee.** We have not verified other Unity titles, and substantial work remains on native compatibility, game-specific behavior, and additional engine backends before broader support can be claimed.
+Project V7 currently has gameplay-tested profiles for Cops N Robbers 3.0.2 and Regular Show: Best Park in the Universe 1.2.1. Its legacy Unity baseline is Unity 4.6 Mono, alongside a separate Cocos2d-x native compatibility backend. Other Unity 4.x games are plausible candidates but remain unverified unless specifically listed as tested. Substantial native compatibility, engine-specific, and game-specific runtime work remains.
 
 The supported-app list is loaded from this repository. It is not hard-coded into the Patcher APK. That means support for another app can be added through the catalog without requiring everyone to install a new version of the patcher.
 
@@ -107,7 +151,7 @@ ARMv7 / armeabi-v7a apps are a primary compatibility target, but support is app-
 
 ### Does Project V7 support Cops N Robbers 3.0.2?
 
-Yes. Cops N Robbers 3.0.2 is currently the **only officially supported game** and the main compatibility test case for Project V7. Other games are still a work in progress.
+Yes. Cops N Robbers 3.0.2 is the original and main Unity compatibility test case for Project V7. The catalog also includes a gameplay-tested Cocos2d-x profile for Regular Show: Best Park in the Universe 1.2.1. Other games remain a work in progress.
 
 ### Will other older Unity games work?
 
@@ -132,11 +176,8 @@ See [guest storage and OBB mapping](docs/guest-storage.md).
 
 ## Native compatibility backends
 
-PV7's catalog can accept game entries for many Android APKs, but its current
-runtime only builds experimental legacy ARMv7 **Unity 4.6 Mono** wrappers.
-Only the Cops N Robbers 3.0.2 game configuration is officially supported. Other Unity 4.x-era games may eventually work with the existing approach, but remain untested and may need substantial game-specific fixes. A Cocos2d-x game
-such as Regular Show: Best Park in the Universe needs a separate native
-compatibility backend, not the existing CNR Unity wrapper.
+PV7's catalog can accept game entries for many Android APKs. The runtime currently has separate native compatibility paths for legacy ARM32 Unity 4.6 Mono and Cocos2d-x games. Cops N Robbers 3.0.2 and Regular Show: Best Park in the Universe 1.2.1 are gameplay-tested reference configurations for these backends. Other games may need substantial engine-specific or game-specific fixes. A Cocos2d-x game uses its own native compatibility backend, not the existing CNR Unity wrapper.
+
 See [engine compatibility and diagnostics](docs/compatibility-backends.md).
 
 ## Releases and updates
@@ -155,6 +196,16 @@ Pull requests for new app profiles, compatibility fixes, and improvements to the
 If you are adding another app, keep app-specific behavior in that app's module when possible. Reusable fixes should go into a general module so another app can use them later.
 
 Please include enough information to reproduce what you tested, including the app version, package name, CPU architecture, and Android version.
+
+## Support development
+
+### Help keep classic games alive
+
+Project V7 is independently developed, free and open source. Optional contributions help fund continued development, compatibility research, testing on additional devices, and the preservation of legacy Android games.
+
+Every contribution helps. Donations are entirely optional and Project V7 will remain free and open source. Donations do not buy exclusive features or guarantee support for a particular game.
+
+**A donation link will be added here once the funding page is set up.** In the meantime, testing games, reporting compatibility issues, contributing fixes, and starring or sharing the project are also great ways to support development.
 
 ## Credits
 
