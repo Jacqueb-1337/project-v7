@@ -1,0 +1,37 @@
+--- a/cnr64-wrapper/src/gles_bridge_methods.inc
++++ b/cnr64-wrapper/src/gles_bridge_methods.inc
+@@ -599,8 +599,23 @@
+                     // Some modern Adreno drivers reject old Unity 4.x generated GLSL
+                     // when the final preprocessor line is not newline-terminated.
+                     // Retry only shaders that already failed, leaving normal shaders untouched.
+-                    if (!source.empty() && source.back() != '\n') {
+-                        source.push_back('\n');
++                    bool repaired_header = false;
++                    // A legacy Unity shader may concatenate its generated GLSL ES 100
++                    // header fragments without line endings. Repair only the exact
++                    // observed malformed prefix, not valid GLSL or its version.
++                    const std::string version = "#version 100";
++                    const std::string define = "#define UNITY_ADRENO_ES3 1";
++                    const std::string precision = "precision highp float;";
++                    if (source.compare(0, version.size() + define.size(), version + define) == 0) {
++                        source.insert(version.size(), "\n");
++                        repaired_header = true;
++                    } else if (source.compare(0, version.size() + precision.size() + define.size(), version + precision + define) == 0) {
++                        source.insert(version.size() + precision.size(), "\n");
++                        source.insert(version.size(), "\n");
++                        repaired_header = true;
++                    }
++                    if (repaired_header || (!source.empty() && source.back() != '\n')) {
++                        if (source.back() != '\n') source.push_back('\n');
+                         const GLchar* retry_source = source.c_str();
+                         const GLint retry_length = static_cast<GLint>(source.size());
+                         glShaderSource(shader, 1, &retry_source, &retry_length);
+@@ -609,7 +624,7 @@
+ #if defined(__ANDROID__)
+                         if (compiled == GL_TRUE) {
+                             __android_log_print(ANDROID_LOG_INFO, "CNR64POC",
+-                                                "PV7GL shader recovered after newline retry shader=%u source=%d",
++                                                "PV7GL shader recovered after header/newline retry shader=%u source=%d",
+                                                 shader, retry_length);
+                         }
+ #endif

@@ -58,3 +58,17 @@ Runtime verification remains pending.
 
 Next: verify stage 8, audit remaining imported data and JNI calls, and
 regression-test Unity 4.6 before replacing the template.
+
+## Stage 9 and Stage 10 runtime verification
+
+Stage 9 (patch 07) registered 91 additional existing GLES dispatch handlers for dynamic lookup and added bounded lookup-miss diagnostics. On-device testing passed the previous glGetString null branch but exposed another at glGetShaderPrecisionFormat; the diagnostic log identified 33 graphics lookup gaps.
+
+Stage 10 (patch 08) adds 32 marshaling handlers with capability checks. KHR_debug is withheld pending guest callback support. The ARM64 build, APK signature and 16 KiB ZIP alignment passed. A cold launch on the isolated OnePlus virtual display reported zero unresolved graphics lookups, performed framebuffer probes, then exhausted the 16,000-slice nativeRender budget at guest PC 0x031c57d8 without reporting a guest fault. No completed render or playable support is claimed. Seven non-graphics lookup misses remain, including optional Mono AOT metadata probes. Next investigate progress through Mono initialization and make the startup watchdog progress-aware. Production wrapper and Unity 4.6 regression testing remain separate.
+
+## Stage 11 through Stage 13
+
+Patch 09 implements a progress-sensitive startup execution budget (up to one million slices, sampled 45-second wall limit). Stage 11 completed nativeRender after 314,998 slices and subsequent render calls returned. Register changes are a heuristic, not proof of semantic progress.
+
+Patch 10 retries failed GLSL ES 100 shaders with the two observed malformed header prefixes repaired. The Unity splash was visually reported on Stage 12. Stage 13 logged 12 shader recoveries and 12 remaining failures (extension directives after precision declarations, including repeated attempts). No game scene or playability is verified.
+
+Patch 11 adds sampled render-thread wait ownership and periodic worker snapshots. Stage 13 identified guest worker 33 holding recursive mutex 0x055f9cb4 while main render polls it. Worker samples repeatedly show 0x031be15c, corresponding to the Mono mempool growth loop assuming the observed Mono base of 0x03000000. Investigate allocator operands and provenance before modifying synchronization. No lock bypass is implemented. Patches 09-11 round-trip against saved stage sources with LF normalization. All three isolated ARM64 builds compiled, signed and installed; production CNR regression is not tested.

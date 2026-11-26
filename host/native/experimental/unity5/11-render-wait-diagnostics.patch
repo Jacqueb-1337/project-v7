@@ -1,0 +1,27 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -6876,6 +6876,15 @@
+                                                     i - start, owner_sync->second[i].c_str());
+                             }
+                         }
++                    }
++                }
++#endif
++                #if defined(__ANDROID__)
++                if (current_thread_id_ == 1u) {
++                    static unsigned main_busy_samples = 0;
++                    if ((main_busy_samples++ % 1024u) == 0u) {
++                        const auto owner = std::find_if(guest_thread_launches_.begin(), guest_thread_launches_.end(), [&](const GuestThreadLaunch& item) { return item.id == mutex.owner; });
++                        __android_log_print(ANDROID_LOG_INFO, "CNR64POC", "PV7WAIT main trylock mutex=%08x owner=%u recursion=%u owner_pc=%08x owner_lr=%08x owner_finished=%d caller=%08x", mutex_address, mutex.owner, mutex.recursion, owner != guest_thread_launches_.end() ? owner->regs[15] : 0u, owner != guest_thread_launches_.end() ? owner->regs[14] : 0u, owner != guest_thread_launches_.end() && owner->finished, jit ? jit->Regs()[14] : 0u);
+                     }
+                 }
+ #endif
+@@ -11123,7 +11132,7 @@
+                                                     label, followup_slices, jit.Regs()[15], jit.Regs()[14],
+                                                     jit.Regs()[13], jit.Regs()[0], followup_worker_pumps,
+                                                     startup_thunk.empty() ? "-" : startup_thunk.c_str());
+-                                if (followup_slices == 256 && startup_thunk == "pthread_mutex_trylock") {
++                                if (followup_slices == 256 || (followup_slices % 4096) == 0) {
+                                     for (const auto& thread_state : env.DebugGuestThreadStates())
+                                         __android_log_print(ANDROID_LOG_INFO, "CNR64POC", "PV7STARTUP thread %s", thread_state.c_str());
+                                 }
