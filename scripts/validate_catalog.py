@@ -93,7 +93,7 @@ def main():
         ops = module.get("operations")
         if not isinstance(ops, list) or any(not isinstance(o, dict) or not isinstance(o.get("type"), str) for o in ops):
             error(path, "module.operations must be a list of typed objects")
-        if module.get("kind") == "game" and ops == [] and not module.get("payloadFiles"):
+        if module.get("kind") == "game" and ops == [] and not module.get("payloadFiles") and not module.get("dependencies"):
             warnings.append(f"{path}: game module has no patch operations or payloads")
         deps = module.get("dependencies", [])
         if not isinstance(deps, list) or any(not isinstance(dep, str) for dep in deps):
