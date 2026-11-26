@@ -23,6 +23,7 @@ import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
 import app.morphe.manager.domain.pv7.Pv7CatalogLoader
 import app.morphe.manager.domain.pv7.Pv7SupportedApp
+import app.morphe.manager.domain.pv7.Pv7GameCatalogSearch
 import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
 import app.morphe.manager.patcher.patch.BundleAppMetadata
 import app.morphe.manager.patcher.patch.PatchBundleInfo
@@ -135,9 +136,15 @@ class HomeApps(
 
     fun pv7SupportedApp(packageName: String): Pv7SupportedApp? = _pv7SupportedApps.value[packageName]
 
+    private var pv7RefreshJob: Job? = null
     private fun refreshPv7SupportedApps() {
-        scope.launch(Dispatchers.IO) {
-            val catalog = Pv7CatalogLoader(app).load(refreshRemote = true)
+        if (pv7RefreshJob?.isActive == true) return
+        pv7RefreshJob = scope.launch(Dispatchers.IO) {
+            val loader = Pv7CatalogLoader(app)
+            val cached = loader.load(refreshRemote = false)
+            _pv7SupportedApps.value = cached.apps.associateBy { it.packageName }
+            _appStateTicker.update { it + 1 }
+            val catalog = loader.load(refreshRemote = true)
             _pv7SupportedApps.value = catalog.apps.associateBy { it.packageName }
             _appStateTicker.update { it + 1 }
         }
@@ -583,7 +590,10 @@ class HomeApps(
 
         // Project V7 supported apps are defined by the Project V7 catalog only.
         // Inherited Morphe patch records stay in storage but do not populate this home list.
-        val allPackages = packages
+        val allPackages = packages.filter { pkg ->
+            Pv7GameCatalogSearch.showOnHome(pkg, pv7Apps.keys,
+                pkg in installedPackages, !recordsByApp[pkg].isNullOrEmpty())
+        }
 
         val allSlots = allPackages.flatMap { pkg ->
             homeAppSlots(pkg, recordsByApp[pkg].orEmpty())

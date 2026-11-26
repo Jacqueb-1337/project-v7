@@ -2,8 +2,7 @@
   "id": "best-park-1.2.0-experimental",
   "packageId": "com.turner.bestparkintheuniverse",
   "versions": [
-    "1.2.0",
-    "1.2.1"
+    "1.2.0"
   ],
   "abis": [
     "armeabi",
@@ -20,6 +19,6 @@
     "best-park-compat"
   ],
   "blacklist": [],
-  "notes": "Version 16 APKs labeled 1.2.0 or 1.2.1 share the verified native binary; full shared host runtime remains experimental. Supply original version-16 OBB via PV7 Game Storage.",
-  "profileVersion": 2
+  "notes": "Version-code 16 APKs labeled 1.2.0 are accepted only if their native library SHA-256 matches the verified 1.2.1 build. This version label has not been independently gameplay-tested. Supply original version-16 OBB via PV7 Game Storage.",
+  "profileVersion": 3
 }
