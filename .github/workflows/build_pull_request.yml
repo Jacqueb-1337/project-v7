@@ -93,6 +93,12 @@ jobs:
           chmod +x ./gradlew
           ./gradlew ${{ steps.fork_check.outputs.gradle_task }} --stacktrace
 
+      - name: Verify metadata-only catalog packaging
+        run: |
+          for f in ${{ steps.fork_check.outputs.apk_dir }}/*.apk; do
+            python3 scripts/verify_catalog_apk.py "$f"
+          done
+
       - name: Rename APK
         run: |
           suffix="${{ steps.fork_check.outputs.apk_suffix }}"

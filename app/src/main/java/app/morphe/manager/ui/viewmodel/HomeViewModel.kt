@@ -276,7 +276,9 @@ class HomeViewModel(
         val resolution: Pv7ResolutionPlan,
         val optionValues: Map<String, String>,
         val sourceDisplayName: String,
-        val catalogRepository: String
+        val catalogRepository: String,
+        val downloadingModules: Boolean = false,
+        val moduleDownloadError: String? = null
     )
 
     var pv7PendingRun by mutableStateOf<Pv7PendingPatchRun?>(null)
@@ -2544,6 +2546,7 @@ class HomeViewModel(
     /** Explicit contributor override, never treated as tested support. */
     fun changePv7CatalogRepository(raw: String) {
         val state = pv7PendingRun ?: return
+        if (state.downloadingModules) return
         val repo = runCatching { Pv7CatalogRepository.validate(raw) }
             .getOrElse {
                 app.toast("Use a GitHub repository such as owner/project-v7")
@@ -2643,6 +2646,7 @@ class HomeViewModel(
 
     fun togglePv7Module(moduleId: String) {
         val state = pv7PendingRun ?: return
+        if (state.downloadingModules) return
         val row = state.resolution.visibleModules.firstOrNull { it.manifest.id == moduleId } ?: return
         val isExplicit = moduleId in state.explicitModuleIds
         val requiredOnly = row.selected && !isExplicit
@@ -2674,6 +2678,7 @@ class HomeViewModel(
 
     fun confirmPv7Selection() {
         val state = pv7PendingRun ?: return
+        if (state.downloadingModules) return
         if (!Pv7GuestBackend.canProceed(state.target, state.resolution.selectedModuleIds)) {
             app.toast(Pv7GuestBackend.selectionExplanation(state.target))
             return
@@ -2699,15 +2704,24 @@ class HomeViewModel(
             return
         }
 
-        pv7PendingRun = null
-        startPatchingNow(
-            selectedApp = state.selectedApp,
-            patches = state.patches,
-            options = state.options,
-            targetPackageName = state.targetPackageName,
-            pv7ModuleIds = state.resolution.selectedModuleIds,
-            pv7OptionValues = state.optionValues
-        )
+        pv7PendingRun = state.copy(downloadingModules = true, moduleDownloadError = null)
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    Pv7CatalogLoader(app).ensurePayloads(state.resolution.selectedModuleIds)
+                }
+            }
+            val current = pv7PendingRun ?: return@launch
+            if (!current.downloadingModules || current.selectedApp != state.selectedApp) return@launch
+            if (result.isFailure) {
+                pv7PendingRun = current.copy(downloadingModules = false,
+                    moduleDownloadError = result.exceptionOrNull()?.message ?: "Module download failed")
+                return@launch
+            }
+            pv7PendingRun = null
+            startPatchingNow(state.selectedApp, state.patches, state.options, state.targetPackageName,
+                state.resolution.selectedModuleIds, state.optionValues)
+        }
     }
 
     fun dismissPv7Selection() {

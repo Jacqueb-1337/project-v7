@@ -40,7 +40,7 @@ class Pv7BuildPlanner(private val context: Context) {
     fun create(selectedModuleIds: Set<String>): Pv7BuildPlan {
         if (selectedModuleIds.isEmpty()) return Pv7BuildPlan.Empty
 
-        val catalog = Pv7CatalogLoader(context).load(refreshRemote = false)
+        val catalog = Pv7CatalogLoader(context).ensurePayloads(selectedModuleIds)
         if (catalog.issues.isNotEmpty()) {
             throw IllegalStateException(
                 "PV7 catalog is invalid: " + catalog.issues.joinToString("; ")
@@ -119,4 +119,20 @@ class Pv7BuildPlanner(private val context: Context) {
             selectedModules = selectedModules
         )
     }
+}
+
+fun pv7DependencyClosure(modules: List<Pv7ModuleManifest>, ids: Set<String>): List<Pv7ModuleManifest> {
+    val byId = modules.associateBy { it.id }
+    val selected = linkedMapOf<String, Pv7ModuleManifest>()
+    val visiting = hashSetOf<String>()
+    fun visit(id: String) {
+        if (id in selected) return
+        check(visiting.add(id)) { "Circular module dependency: $id" }
+        val module = byId[id] ?: error("Missing module: $id")
+        module.dependencies.forEach(::visit)
+        visiting.remove(id)
+        selected[id] = module
+    }
+    ids.forEach(::visit)
+    return selected.values.toList()
 }

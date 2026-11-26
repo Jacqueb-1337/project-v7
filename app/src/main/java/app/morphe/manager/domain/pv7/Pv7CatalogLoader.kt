@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.OutputStream
+import java.security.MessageDigest
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -56,7 +58,9 @@ data class Pv7CatalogRefreshProgress(
     val completed: Int = 0,
     val total: Int = 0,
     val bytes: Long = 0,
-    val totalBytes: Long = -1
+    val totalBytes: Long = -1,
+    val checkedAtMillis: Long = 0,
+    val changed: Boolean = false
 ) {
     val active get() = phase != Pv7CatalogRefreshPhase.COMPLETE && phase != Pv7CatalogRefreshPhase.FAILED
 }
@@ -79,38 +83,52 @@ class Pv7CatalogLoader(
         = File(context.filesDir, "pv7/catalog-" + repo.replace('/', '_'))
 
     /** Explicitly chosen by the user when testing a contributor's fork. */
-    fun setRepository(repo: String) {
+    fun setRepository(repo: String) = synchronized(refreshLock) {
         preferences.edit()
             .putString("repository", Pv7CatalogRepository.validate(repo))
             .apply()
     }
 
-    fun load(refreshRemote: Boolean = true): Pv7LoadedCatalog {
+    fun load(refreshRemote: Boolean = true): Pv7LoadedCatalog = synchronized(refreshLock) {
         val source = repository
         val cacheRoot = cacheRootFor(source)
+        if (!refreshRemote && _refreshProgress.value == null) {
+            val checked = preferences.getLong("checked_at/$source", 0)
+            val result = preferences.getString("checked_result/$source", null)
+            if (checked > 0 && result != null) {
+                val phase = if (result == "failed") Pv7CatalogRefreshPhase.FAILED else Pv7CatalogRefreshPhase.COMPLETE
+                _refreshProgress.compareAndSet(null, Pv7CatalogRefreshProgress(
+                    phase, checkedAtMillis = checked, changed = result == "changed"))
+            }
+        }
         if (refreshRemote) {
             runCatching {
                 synchronized(refreshLock) {
                     try {
-                        refreshRemoteCache(source, cacheRoot)
-                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.COMPLETE)
+                        val changed = refreshRemoteCache(source, cacheRoot)
+                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.COMPLETE,
+                            checkedAtMillis = System.currentTimeMillis(), changed = changed)
+                        preferences.edit().putLong("checked_at/$source", System.currentTimeMillis())
+                            .putString("checked_result/$source", if (changed) "changed" else "unchanged").apply()
                     } catch (e: Exception) {
-                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.FAILED)
+                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.FAILED, checkedAtMillis = System.currentTimeMillis())
+                        preferences.edit().putLong("checked_at/$source", System.currentTimeMillis())
+                            .putString("checked_result/$source", "failed").apply()
                         throw e
                     }
                 }
-                return loadDirectory(cacheRoot, Pv7CatalogOrigin.REMOTE)
+                return@synchronized loadDirectory(cacheRoot, Pv7CatalogOrigin.REMOTE)
             }
         }
 
         if (File(cacheRoot, "index.json").isFile) {
-            runCatching { return loadDirectory(cacheRoot, Pv7CatalogOrigin.CACHE) }
+            runCatching { return@synchronized loadDirectory(cacheRoot, Pv7CatalogOrigin.CACHE) }
         }
 
-        return loadBundled()
+        loadBundled()
     }
 
-    private fun refreshRemoteCache(source: String, cacheRoot: File) {
+    private fun refreshRemoteCache(source: String, cacheRoot: File): Boolean {
         val baseUrl = Pv7CatalogRepository.baseUrl(source)
         report(Pv7CatalogRefreshPhase.INDEX, "index.json")
         val indexText = fetchText(baseUrl + "index.json")
@@ -128,49 +146,39 @@ class Pv7CatalogLoader(
         val tempRoot = File(parent, cacheRoot.name + ".incoming-" + System.nanoTime())
         check(tempRoot.mkdirs()) { "Cannot create catalog staging directory" }
         try {
+            var changed = !File(cacheRoot, "index.json").isFile || File(cacheRoot, "index.json").readText() != indexText
+            fun cacheText(path: String, value: String) {
+                val previous = safeChild(cacheRoot, path)
+                if (!previous.isFile || previous.readText() != value) changed = true
+                writeText(safeChild(tempRoot, path), value)
+            }
             writeText(File(tempRoot, "index.json"), indexText)
 
             index.modules.forEachIndexed { moduleNumber, path ->
                 report(Pv7CatalogRefreshPhase.MODULES, path.substringBeforeLast('/').substringAfterLast('/'), moduleNumber, index.modules.size)
                 val moduleText = fetchText(baseUrl + path)
-                val moduleFile = safeChild(tempRoot, path)
-                writeText(moduleFile, moduleText)
+                cacheText(path, moduleText)
 
                 val module = json.decodeFromString<Pv7ModuleManifest>(stripBom(moduleText))
-                val moduleDir = path.substringBeforeLast('/')
-                // A versioned module manifest is the cache key. Reuse unchanged
-                // payload bytes rather than downloading large native libraries on
-                // every catalog refresh. Changing a payload requires a version bump.
                 val cachedManifest = safeChild(cacheRoot, path)
-                val mayReusePayload = cachedManifest.isFile &&
-                    cachedManifest.readText() == moduleText
-                module.payloadFiles.forEach { relative ->
-                    val payloadUrl = baseUrl + moduleDir + "/payload/" + relative
-                    val payloadPath = moduleDir + "/payload/" + relative
-                    val output = safeChild(tempRoot, payloadPath)
-                    val existing = safeChild(cacheRoot, payloadPath)
-                    if (mayReusePayload && existing.isFile) {
-                        output.parentFile?.mkdirs()
-                        existing.copyTo(output, overwrite = true)
-                    } else {
-                        report(Pv7CatalogRefreshPhase.MODULES, module.name + " / " + relative.substringAfterLast('/'), moduleNumber, index.modules.size)
-                        writeBytes(output, fetchBytes(payloadUrl))
-                    }
+                if (cachedManifest.isFile && cachedManifest.readText() == moduleText) {
+                    migrateLegacyPayloads(cacheRoot, path, moduleText, module)
                 }
+
             }
 
             index.profiles.forEachIndexed { i, path ->
                 report(Pv7CatalogRefreshPhase.PROFILES, path, i, index.profiles.size)
-                writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
+                cacheText(path, fetchText(baseUrl + path))
             }
 
             index.apps.forEachIndexed { i, path ->
                 report(Pv7CatalogRefreshPhase.APPS, path, i, index.apps.size)
-                writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
+                cacheText(path, fetchText(baseUrl + path))
             }
 
             report(Pv7CatalogRefreshPhase.VALIDATING)
-            val validated = loadDirectory(tempRoot, Pv7CatalogOrigin.REMOTE)
+            val validated = loadDirectory(tempRoot, Pv7CatalogOrigin.REMOTE, cacheRoot)
             require(validated.issues.isEmpty()) {
                 "Downloaded PV7 catalog is invalid: " + validated.issues.joinToString("; ")
             }
@@ -185,12 +193,125 @@ class Pv7CatalogLoader(
                 error("Cannot apply new catalog")
             }
             backup.deleteRecursively()
+            return changed
         } finally {
             tempRoot.deleteRecursively()
         }
     }
 
-    private fun loadDirectory(root: File, origin: Pv7CatalogOrigin): Pv7LoadedCatalog {
+    private fun payloadDirectory(cacheRoot: File, path: String, manifest: String): File {
+        val key = MessageDigest.getInstance("SHA-256").digest(manifest.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        return safeChild(File(cacheRoot.parentFile, cacheRoot.name + "-payloads"), path.substringBeforeLast('/') + "/" + key)
+    }
+
+    private fun migrateLegacyPayloads(cacheRoot: File, path: String, text: String, module: Pv7ModuleManifest) {
+        val old = safeChild(cacheRoot, path).parentFile ?: return
+        val destination = payloadDirectory(cacheRoot, path, text)
+        module.payloadFiles.forEach { relative ->
+            val from = safeChild(File(old, "payload"), relative)
+            val to = safeChild(File(destination, "payload"), relative)
+            if (from.isFile && !to.isFile) {
+                to.parentFile?.mkdirs()
+                val temp = File.createTempFile("migration-", ".part", to.parentFile)
+                try {
+                    from.copyTo(temp, overwrite = true)
+                    check(temp.renameTo(to) || to.isFile) { "Cannot migrate module payload" }
+                } finally { temp.delete() }
+            }
+        }
+    }
+
+    fun isModuleDownloaded(module: Pv7ModuleManifest): Boolean =
+        module.payloadFiles.all { relative ->
+            val root = module.sourceAssetPath
+            if (root.startsWith("file:")) safeChild(File(root.removePrefix("file:"), "payload"), relative).isFile
+            else runCatching {
+                assets.open(root.removePrefix("asset:") + "/payload/" + relative).close()
+                true
+            }.getOrDefault(false)
+        }
+
+    fun moduleCacheBytes(module: Pv7ModuleManifest): Long =
+        moduleCacheDirectory(module)?.walkTopDown()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+
+    private fun moduleCacheDirectory(module: Pv7ModuleManifest): File? {
+        if (!module.sourceAssetPath.startsWith("file:")) return null
+        val versionDir = File(module.sourceAssetPath.removePrefix("file:"))
+        val root = cacheRootFor(repository)
+        val store = File(root.parentFile, root.name + "-payloads")
+        val moduleDir = versionDir.parentFile ?: return null
+        check(moduleDir.canonicalPath.startsWith(store.canonicalPath + File.separator))
+        return moduleDir
+    }
+
+    fun removePayloads(ids: Set<String>) = synchronized(refreshLock) {
+        val catalog = load(false)
+        require(catalog.issues.isEmpty())
+        val root = cacheRootFor(repository)
+        val indexFile = File(root, "index.json")
+        if (!indexFile.isFile) return@synchronized
+        val index = json.decodeFromString<Pv7CatalogIndex>(stripBom(indexFile.readText()))
+        index.modules.forEach { path ->
+            val manifest = json.decodeFromString<Pv7ModuleManifest>(stripBom(safeChild(root, path).readText()))
+            if (manifest.id in ids) {
+                val module = catalog.modules.first { it.id == manifest.id }
+                val legacy = safeChild(root, path.substringBeforeLast('/') + "/payload")
+                check(!legacy.exists() || legacy.deleteRecursively()) { "Cannot remove legacy cache" }
+                val dir = moduleCacheDirectory(module)
+                check(dir == null || !dir.exists() || dir.deleteRecursively()) { "Cannot remove module cache" }
+            }
+        }
+    }
+
+    fun ensurePayloads(ids: Set<String>): Pv7LoadedCatalog = synchronized(refreshLock) {
+        var catalog = load(false)
+        if (catalog.origin == Pv7CatalogOrigin.BUNDLED &&
+            pv7DependencyClosure(catalog.modules, ids).any { !isModuleDownloaded(it) }) {
+            val previous = pv7DependencyClosure(catalog.modules, ids).associateBy { it.id }
+            catalog = load(true)
+            val current = pv7DependencyClosure(catalog.modules, ids).associateBy { it.id }
+            check(previous.mapValues { it.value.copy(sourceAssetPath = "") } ==
+                current.mapValues { it.value.copy(sourceAssetPath = "") }) {
+                "Module catalog changed. Reopen module selection and retry."
+            }
+        }
+        require(catalog.issues.isEmpty()) { catalog.issues.joinToString("; ") }
+        val missing = pv7DependencyClosure(catalog.modules, ids).filterNot(::isModuleDownloaded)
+        if (missing.isEmpty()) return@synchronized catalog
+        require(catalog.origin != Pv7CatalogOrigin.BUNDLED) { "Refresh catalog first." }
+        val source = repository
+        val root = cacheRootFor(source)
+        val index = json.decodeFromString<Pv7CatalogIndex>(stripBom(File(root, "index.json").readText()))
+        val paths = index.modules.associateBy { path ->
+            json.decodeFromString<Pv7ModuleManifest>(stripBom(safeChild(root, path).readText())).id
+        }
+        try {
+            missing.forEachIndexed { number, module ->
+                val manifestPath = paths.getValue(module.id)
+                val dir = manifestPath.substringBeforeLast('/')
+                report(Pv7CatalogRefreshPhase.MODULES, module.name, number, missing.size)
+                val base = Pv7CatalogRepository.baseUrl(source)
+                check(fetchText(base + manifestPath) == safeChild(root, manifestPath).readText()) {
+                    "Module changed on server. Refresh catalog and retry."
+                }
+                module.payloadFiles.forEach { relative ->
+                    val file = safeChild(File(module.sourceAssetPath.removePrefix("file:"), "payload"), relative)
+                    if (!file.isFile) {
+                        report(Pv7CatalogRefreshPhase.MODULES, module.name + " / " + relative.substringAfterLast('/'), number, missing.size)
+                        downloadPayload(Pv7CatalogRepository.baseUrl(source) + dir + "/payload/" + relative, file)
+                    }
+                }
+            }
+            report(Pv7CatalogRefreshPhase.COMPLETE, "Selected modules downloaded")
+        } catch (e: Exception) {
+            report(Pv7CatalogRefreshPhase.FAILED, "Module download failed")
+            throw e
+        }
+        catalog
+    }
+
+    private fun loadDirectory(root: File, origin: Pv7CatalogOrigin, cacheRoot: File = root): Pv7LoadedCatalog {
         val index = json.decodeFromString<Pv7CatalogIndex>(
             stripBom(File(root, "index.json").readText())
         )
@@ -199,9 +320,10 @@ class Pv7CatalogLoader(
         val modules = index.modules.mapNotNull { path ->
             val file = safeChild(root, path)
             runCatching {
-                json.decodeFromString<Pv7ModuleManifest>(stripBom(file.readText())).copy(
-                    sourceAssetPath = "file:" + file.parentFile!!.absolutePath
-                )
+                val text = file.readText()
+                val module = json.decodeFromString<Pv7ModuleManifest>(stripBom(text))
+                if (root == cacheRoot) migrateLegacyPayloads(cacheRoot, path, text, module)
+                module.copy(sourceAssetPath = "file:" + payloadDirectory(cacheRoot, path, text).absolutePath)
             }.onFailure {
                 issues += "Invalid module " + path + ": " + it.message
             }.getOrNull()
@@ -357,7 +479,21 @@ class Pv7CatalogLoader(
     private fun fetchText(url: String): String =
         fetchBytes(url).toString(Charsets.UTF_8)
 
-    private fun fetchBytes(url: String): ByteArray {
+    private fun fetchBytes(url: String): ByteArray = ByteArrayOutputStream().use { out ->
+        fetchTo(url, out)
+        out.toByteArray()
+    }
+
+    private fun downloadPayload(url: String, target: File) {
+        target.parentFile?.mkdirs()
+        val temp = File.createTempFile("download-", ".part", target.parentFile)
+        try {
+            temp.outputStream().use { fetchTo(url, it) }
+            check(temp.renameTo(target)) { "Cannot install module payload" }
+        } finally { temp.delete() }
+    }
+
+    private fun fetchTo(url: String, out: OutputStream) {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 5000
         connection.readTimeout = 10000
@@ -373,7 +509,6 @@ class Pv7CatalogLoader(
             val total = connection.contentLengthLong
             _refreshProgress.value = _refreshProgress.value?.copy(bytes = 0, totalBytes = total)
             val progress = _refreshProgress.value
-            val out = ByteArrayOutputStream()
             var received = 0L
             var lastUpdate = 0L
             connection.inputStream.use { input ->
@@ -391,7 +526,7 @@ class Pv7CatalogLoader(
                 }
             }
             _refreshProgress.value = progress?.copy(bytes = received, totalBytes = total)
-            return out.toByteArray()
+            require(total < 0 || received == total) { "Incomplete payload download" }
         } finally {
             connection.disconnect()
         }

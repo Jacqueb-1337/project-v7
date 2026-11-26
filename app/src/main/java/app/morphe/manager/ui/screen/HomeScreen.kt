@@ -286,6 +286,7 @@ fun HomeScreen(
 
     if (catalogOpen) {
         Pv7GameCatalogScreen(
+            allowModuleManagement = batchRun == null,
             apps = Pv7GameCatalogSearch.visibleGames(catalogApps.values, showExperimentalPv7Games),
             loading = catalogApps.isEmpty() && bundlePipelineLoading,
             onBack = { catalogOpen = false },
@@ -318,6 +319,7 @@ fun HomeScreen(
             ) {
                 Text(stringResource(R.string.pv7_game_catalog_browse))
             }
+            Pv7CatalogStatus(Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
             SectionsLayout(
                 notifications = HomeNotificationsUi(
                     managerUpdate = AlertState(hasManagerUpdate) { showUpdateDetailsDialog.value = true },

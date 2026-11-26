@@ -141,8 +141,19 @@ val translationTags = translations.joinToString(prefix = "{", postfix = "}") { (
     "\"$tag\""
 }
 
+// Ship a catalog snapshot, not every downloadable compatibility payload.
+val pv7CatalogMetadata = tasks.register<Sync>("preparePv7CatalogMetadata") {
+    from(rootProject.file("catalog")) {
+        exclude("modules/**/payload/**")
+    }
+    into(layout.buildDirectory.dir("generated/pv7/catalog"))
+}
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(pv7CatalogMetadata)
+}
+
 android {
-    sourceSets["main"].assets.srcDir(rootProject.file("catalog"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/pv7/catalog").get().asFile)
     namespace = "app.morphe.manager"
     compileSdk = 37
 

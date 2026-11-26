@@ -25,6 +25,8 @@ if [ -z "${APK_SRC}" ]; then
   exit 1
 fi
 
+python3 scripts/verify_catalog_apk.py "$APK_SRC"
+
 APK_DST="${RELEASE_DIR}/project-v7-patcher-${VERSION}.apk"
 mv "${APK_SRC}" "${APK_DST}"
 echo "Renamed APK to ${APK_DST}"
