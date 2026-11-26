@@ -1,3 +1,10 @@
+# [1.38.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.3...v1.38.0) (2026-11-26)
+
+
+### Features
+
+* **pv7:** ship shared guest supervisor by default ([9296fd8](https://github.com/Jacqueb-1337/project-v7/commit/9296fd80f569a3451a1961405381019340aeaa84))
+
 ## [1.37.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.2...v1.37.3) (2026-11-23)
 
 
