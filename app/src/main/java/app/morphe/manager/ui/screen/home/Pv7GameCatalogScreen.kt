@@ -36,15 +36,80 @@ fun Pv7GameCatalogScreen(
     val progress by Pv7CatalogLoader.refreshProgress.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(apps, query) { Pv7GameCatalogSearch.search(apps, query) }
-    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, stringResource(R.string.pv7_game_catalog_back)) }
-            Text(stringResource(R.string.pv7_game_catalog_title), style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, enabled = progress?.active != true) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, stringResource(R.string.pv7_game_catalog_back)) }
+                Text(stringResource(R.string.pv7_game_catalog_title), style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f))
+                IconButton(onClick = onRefresh, enabled = progress?.active != true) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
+            }
+            Pv7CatalogStatus(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text(stringResource(R.string.pv7_game_catalog_search)) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
+                    Icon(Icons.Outlined.Close, stringResource(R.string.pv7_game_catalog_clear))
+                } }
+            )
+            Text(stringResource(R.string.pv7_game_catalog_count, results.size, apps.size),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (loading) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (results.isEmpty()) item {
+                        Text(stringResource(if (apps.isEmpty()) R.string.pv7_game_catalog_empty else R.string.pv7_game_catalog_no_results))
+                    }
+                    items(results, key = { it.packageName }) { entry ->
+                        Card(Modifier.fillMaxWidth().clickable { onGameClick(entry) }) {
+                            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                                AppIcon(packageName = entry.packageName, remoteIconUrl = entry.iconUrl,
+                                    contentDescription = null, modifier = Modifier.size(56.dp))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(entry.displayName, style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.weight(1f))
+                                    if (entry.experimental) Text(stringResource(R.string.pv7_game_catalog_experimental),
+                                        color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelMedium)
+                                    else if (entry.gameplayTested) Text(stringResource(R.string.pv7_game_catalog_supported),
+                                        color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                                }
+                                Text(entry.packageName, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val detail = listOfNotNull(entry.engine, entry.recommendedVersion?.let { "v$it" }).joinToString("  |  ")
+                                if (detail.isNotEmpty()) Text(detail, style = MaterialTheme.typography.bodyMedium)
+                                entry.notes?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            OutlinedButton(onClick = onPickApk, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.pv7_game_catalog_other_apk))
+            }
         }
-        progress?.let { state ->
-            if (state.active || state.phase == Pv7CatalogRefreshPhase.FAILED) {
+}
+}
+
+@Composable
+fun Pv7CatalogStatus(modifier: Modifier = Modifier) {
+    val progress by Pv7CatalogLoader.refreshProgress.collectAsState()
+    progress?.let { state ->
+            val failed = state.phase == Pv7CatalogRefreshPhase.FAILED
+            Surface(
+                modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+                color = if (failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (failed) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val label = when (state.phase) {
@@ -55,9 +120,12 @@ fun Pv7GameCatalogScreen(
                         Pv7CatalogRefreshPhase.VALIDATING -> "Validating catalog"
                         Pv7CatalogRefreshPhase.APPLYING -> "Applying catalog"
                         Pv7CatalogRefreshPhase.FAILED -> "Refresh failed. Showing available catalog."
-                        else -> "Catalog updated"
+                        else -> if (state.changed) "Compatibility modules updated" else "Compatibility modules up to date"
                     }
                     Text(label, style = MaterialTheme.typography.labelMedium)
+                    if (!state.active && state.checkedAtMillis > 0) {
+                        Text("Last checked: " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(state.checkedAtMillis)), style = MaterialTheme.typography.bodySmall)
+                    }
                     if (state.active) {
                         if (state.item.isNotBlank()) Text(state.item, style = MaterialTheme.typography.bodySmall)
                         if (state.total > 0) {
@@ -76,56 +144,4 @@ fun Pv7GameCatalogScreen(
                 }
             }
         }
-        OutlinedTextField(
-            value = query, onValueChange = { query = it }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(stringResource(R.string.pv7_game_catalog_search)) },
-            leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                Icon(Icons.Outlined.Close, stringResource(R.string.pv7_game_catalog_clear))
-            } }
-        )
-        Text(stringResource(R.string.pv7_game_catalog_count, results.size, apps.size),
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (loading) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        } else {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (results.isEmpty()) item {
-                    Text(stringResource(if (apps.isEmpty()) R.string.pv7_game_catalog_empty else R.string.pv7_game_catalog_no_results))
-                }
-                items(results, key = { it.packageName }) { entry ->
-                    Card(Modifier.fillMaxWidth().clickable { onGameClick(entry) }) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                            AppIcon(packageName = entry.packageName, remoteIconUrl = entry.iconUrl,
-                                contentDescription = null, modifier = Modifier.size(56.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(entry.displayName, style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.weight(1f))
-                                if (entry.experimental) Text(stringResource(R.string.pv7_game_catalog_experimental),
-                                    color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelMedium)
-                                else if (entry.gameplayTested) Text(stringResource(R.string.pv7_game_catalog_supported),
-                                    color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-                            }
-                            Text(entry.packageName, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            val detail = listOfNotNull(entry.engine, entry.recommendedVersion?.let { "v$it" }).joinToString("  |  ")
-                            if (detail.isNotEmpty()) Text(detail, style = MaterialTheme.typography.bodyMedium)
-                            entry.notes?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        OutlinedButton(onClick = onPickApk, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(stringResource(R.string.pv7_game_catalog_other_apk))
-        }
-    }
 }

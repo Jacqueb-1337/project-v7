@@ -56,7 +56,9 @@ data class Pv7CatalogRefreshProgress(
     val completed: Int = 0,
     val total: Int = 0,
     val bytes: Long = 0,
-    val totalBytes: Long = -1
+    val totalBytes: Long = -1,
+    val checkedAtMillis: Long = 0,
+    val changed: Boolean = false
 ) {
     val active get() = phase != Pv7CatalogRefreshPhase.COMPLETE && phase != Pv7CatalogRefreshPhase.FAILED
 }
@@ -88,14 +90,28 @@ class Pv7CatalogLoader(
     fun load(refreshRemote: Boolean = true): Pv7LoadedCatalog {
         val source = repository
         val cacheRoot = cacheRootFor(source)
+        if (!refreshRemote && _refreshProgress.value == null) {
+            val checked = preferences.getLong("checked_at/$source", 0)
+            val result = preferences.getString("checked_result/$source", null)
+            if (checked > 0 && result != null) {
+                val phase = if (result == "failed") Pv7CatalogRefreshPhase.FAILED else Pv7CatalogRefreshPhase.COMPLETE
+                _refreshProgress.compareAndSet(null, Pv7CatalogRefreshProgress(
+                    phase, checkedAtMillis = checked, changed = result == "changed"))
+            }
+        }
         if (refreshRemote) {
             runCatching {
                 synchronized(refreshLock) {
                     try {
-                        refreshRemoteCache(source, cacheRoot)
-                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.COMPLETE)
+                        val changed = refreshRemoteCache(source, cacheRoot)
+                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.COMPLETE,
+                            checkedAtMillis = System.currentTimeMillis(), changed = changed)
+                        preferences.edit().putLong("checked_at/$source", System.currentTimeMillis())
+                            .putString("checked_result/$source", if (changed) "changed" else "unchanged").apply()
                     } catch (e: Exception) {
-                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.FAILED)
+                        _refreshProgress.value = Pv7CatalogRefreshProgress(Pv7CatalogRefreshPhase.FAILED, checkedAtMillis = System.currentTimeMillis())
+                        preferences.edit().putLong("checked_at/$source", System.currentTimeMillis())
+                            .putString("checked_result/$source", "failed").apply()
                         throw e
                     }
                 }
@@ -110,7 +126,7 @@ class Pv7CatalogLoader(
         return loadBundled()
     }
 
-    private fun refreshRemoteCache(source: String, cacheRoot: File) {
+    private fun refreshRemoteCache(source: String, cacheRoot: File): Boolean {
         val baseUrl = Pv7CatalogRepository.baseUrl(source)
         report(Pv7CatalogRefreshPhase.INDEX, "index.json")
         val indexText = fetchText(baseUrl + "index.json")
@@ -128,13 +144,18 @@ class Pv7CatalogLoader(
         val tempRoot = File(parent, cacheRoot.name + ".incoming-" + System.nanoTime())
         check(tempRoot.mkdirs()) { "Cannot create catalog staging directory" }
         try {
+            var changed = !File(cacheRoot, "index.json").isFile || File(cacheRoot, "index.json").readText() != indexText
+            fun cacheText(path: String, value: String) {
+                val previous = safeChild(cacheRoot, path)
+                if (!previous.isFile || previous.readText() != value) changed = true
+                writeText(safeChild(tempRoot, path), value)
+            }
             writeText(File(tempRoot, "index.json"), indexText)
 
             index.modules.forEachIndexed { moduleNumber, path ->
                 report(Pv7CatalogRefreshPhase.MODULES, path.substringBeforeLast('/').substringAfterLast('/'), moduleNumber, index.modules.size)
                 val moduleText = fetchText(baseUrl + path)
-                val moduleFile = safeChild(tempRoot, path)
-                writeText(moduleFile, moduleText)
+                cacheText(path, moduleText)
 
                 val module = json.decodeFromString<Pv7ModuleManifest>(stripBom(moduleText))
                 val moduleDir = path.substringBeforeLast('/')
@@ -154,6 +175,7 @@ class Pv7CatalogLoader(
                         existing.copyTo(output, overwrite = true)
                     } else {
                         report(Pv7CatalogRefreshPhase.MODULES, module.name + " / " + relative.substringAfterLast('/'), moduleNumber, index.modules.size)
+                        changed = true
                         writeBytes(output, fetchBytes(payloadUrl))
                     }
                 }
@@ -161,12 +183,12 @@ class Pv7CatalogLoader(
 
             index.profiles.forEachIndexed { i, path ->
                 report(Pv7CatalogRefreshPhase.PROFILES, path, i, index.profiles.size)
-                writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
+                cacheText(path, fetchText(baseUrl + path))
             }
 
             index.apps.forEachIndexed { i, path ->
                 report(Pv7CatalogRefreshPhase.APPS, path, i, index.apps.size)
-                writeText(safeChild(tempRoot, path), fetchText(baseUrl + path))
+                cacheText(path, fetchText(baseUrl + path))
             }
 
             report(Pv7CatalogRefreshPhase.VALIDATING)
@@ -185,6 +207,7 @@ class Pv7CatalogLoader(
                 error("Cannot apply new catalog")
             }
             backup.deleteRecursively()
+            return changed
         } finally {
             tempRoot.deleteRecursively()
         }
