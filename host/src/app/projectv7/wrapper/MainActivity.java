@@ -168,6 +168,7 @@ public final class MainActivity extends Activity {
     private ProgressBar guestSpinner;
     private Button guestAction;
     private Button copyRecoveryReport, copyBannerReport;
+    private GuestCompatibilityCard compatibilityCard;
     private volatile GuestCompatibilityEvents.Event lastCompatibilityError;
     private volatile GuestCompatibilityDecision pendingCompatibility;
     private final java.util.Set<String> rememberedCompatibility=java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -334,6 +335,10 @@ public final class MainActivity extends Activity {
         FrameLayout.LayoutParams cardParams=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
         cardParams.setMargins(dp(16),0,dp(16),dp(12));
         rootLayout.addView(storageCard,cardParams);
+        compatibilityCard=new GuestCompatibilityCard(this);
+        FrameLayout.LayoutParams decisionParams=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        decisionParams.setMargins(dp(16),0,dp(16),dp(12));
+        rootLayout.addView(compatibilityCard,decisionParams);
         setContentView(rootLayout);
     }
 
@@ -370,35 +375,19 @@ public final class MainActivity extends Activity {
         pendingCompatibility=d;
         GuestCompatibilityEvents.Event error=new GuestCompatibilityEvents.Event("Cocos2d-x",key,
             "Unresolved static JNI method. Proposed fallback: "+fallback,true);
-        java.util.concurrent.atomic.AtomicReference<android.app.AlertDialog> shown=new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicBoolean remember=new java.util.concurrent.atomic.AtomicBoolean();
         runOnUiThread(()->{
             if(!d.pending()||!activityResumed||restartingGuest||restartWhenStopped||isFinishing()||isDestroyed()){d.resolve(false);return;}
             try{
-                android.widget.CheckBox check=new android.widget.CheckBox(this);
-                check.setText("Remember for this guest session");
-                check.setPadding(dp(20),0,dp(20),0);
-                android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
-                    .setTitle("Compatibility interruption")
-                    .setMessage("Guest execution paused.\n\n"+key+"\n\nFallback: "+fallback+
-                        "\nContinuing may cause unexpected behavior.")
-                    .setView(check)
-                    .setPositiveButton("Continue anyway",(v,w)->{remember.set(check.isChecked());d.resolve(true);})
-                    .setNegativeButton("Stop guest",(v,w)->d.resolve(false))
-                    .setNeutralButton("Copy report",null)
-                    .create();
-                shown.set(dialog);
-                dialog.setOnDismissListener(v->d.resolve(false));
-                dialog.show();
-                dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->copyGuestError(error));
+                compatibilityCard.showDecision(d,()->{remember.set(compatibilityCard.remember());d.resolve(true);},
+                    ()->d.resolve(false),()->copyGuestError(error));
             }catch(RuntimeException unavailable){d.resolve(false);}
         });
         boolean allow=d.await(120000);
         pendingCompatibility=null;
         runOnUiThread(()->{
             lastGuestProgress=SystemClock.elapsedRealtime();
-            android.app.AlertDialog dialog=shown.get();
-            if(dialog!=null&&dialog.isShowing())dialog.dismiss();
+            compatibilityCard.hideDecision(d);
         });
         if(allow&&remember.get())rememberedCompatibility.add(key);
         if(allow){
@@ -1043,7 +1032,7 @@ public final class MainActivity extends Activity {
                 Log.i("PV7HOST", "PV7JAVA touch action=" + event.getActionMasked()
                         + " x=" + event.getX() + " y=" + event.getY()
                         + " view=" + renderSurface.getWidth() + "x" + renderSurface.getHeight());
-                if ((!sawGuestFrame && heartbeatAvailable) || restartingGuest || pointerCount <= 0) return true;
+                if (pendingCompatibility!=null || (!sawGuestFrame && heartbeatAvailable) || restartingGuest || pointerCount <= 0) return true;
                 if (cocosBackend) { CocosGuestRuntime.touch(event,renderSurface.getWidth(),renderSurface.getHeight()); return true; }
                 int[] ids = new int[pointerCount];
                 float[] xs = new float[pointerCount];
