@@ -313,6 +313,47 @@ public final class MainActivity extends Activity {
     }
 
     private static final int SUPERVISOR_NOTIFICATION_ID = 0x7057;
+    private static final int COMPATIBILITY_NOTIFICATION_ID = 0x7058;
+    static synchronized void persistCompatibilityEvent(android.content.Context context,GuestCompatibilityEvents.Event e) {
+        Log.w("PV7COMPAT",e.backend+" "+e.message());
+        try {
+            File file=new File(context.getFilesDir(),"pv7-compatibility-events.log");
+            if(file.length()>64*1024L){
+                File older=new File(context.getFilesDir(),"pv7-compatibility-events.previous.log");
+                if(older.exists()&&!older.delete())return;
+                if(!file.renameTo(older))return;
+            }
+            try(FileOutputStream out=new FileOutputStream(file,true)){
+                out.write((System.currentTimeMillis()+" "+e.backend+" "+e.message()+"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+        } catch(java.io.IOException | RuntimeException unavailable) {
+            Log.w("PV7COMPAT","Compatibility journal unavailable",unavailable);
+        }
+    }
+    private void showCompatibilityNotice(long now) {
+        GuestCompatibilityEvents.Event e=GuestCompatibilityEvents.poll(now);
+        if(e==null)return;
+        String message=e.message();
+        // Toast is available even if the user disabled Android notifications.
+        if(!e.critical)android.widget.Toast.makeText(this,"PV7: "+e.detail,android.widget.Toast.LENGTH_LONG).show();
+        try {
+            NotificationManager manager=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+            if(manager==null || !manager.areNotificationsEnabled())return;
+            String channel="pv7-compatibility";
+            if(Build.VERSION.SDK_INT>=26)manager.createNotificationChannel(new NotificationChannel(
+                channel,"PV7 compatibility warnings",NotificationManager.IMPORTANCE_DEFAULT));
+            Intent open=new Intent(this,MainActivity.class);
+            open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent tap=PendingIntent.getActivity(this,COMPATIBILITY_NOTIFICATION_ID,open,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            Notification.Builder builder=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,channel):new Notification.Builder(this);
+            builder.setSmallIcon(android.R.drawable.stat_notify_error)
+                .setContentTitle(e.critical?"PV7 compatibility error":"PV7 compatibility warning")
+                .setContentText(e.detail).setStyle(new Notification.BigTextStyle().bigText(message))
+                .setContentIntent(tap).setAutoCancel(true).setOnlyAlertOnce(true);
+            manager.notify(COMPATIBILITY_NOTIFICATION_ID,builder.build());
+        } catch(RuntimeException unavailable){Log.w("PV7COMPAT","Warning notification unavailable",unavailable);}
+    }
     private static final String SUPERVISOR_CHANNEL = "pv7-supervisor";
 
     // An ongoing notification is a return-to-game shortcut, not a foreground service.
@@ -652,6 +693,7 @@ public final class MainActivity extends Activity {
             return;
         }
         long now = SystemClock.elapsedRealtime();
+        showCompatibilityNotice(now);
         if (heartbeatAvailable && baselineRunning) {
             try {
                 long count = cocosBackend ? CocosGuestRuntime.frames() : nativeGuestFrameCount();
@@ -1214,6 +1256,7 @@ public final class MainActivity extends Activity {
             guestPreparationRunning = true;
             guestPreparationFailed = false;
             GuestStorageDiagnostics.reset();
+            GuestCompatibilityEvents.reset();
             storageProbeGeneration++;
             blackSamplePending=false;
             storageBlackWarning=false;
@@ -1427,8 +1470,14 @@ public final class MainActivity extends Activity {
                     byte[] tail=new byte[(int)(log.length()-offset)];
                     log.readFully(tail);
                     String detail=new String(tail,java.nio.charset.StandardCharsets.UTF_8);
-                    if(detail.contains("JNI_FindClass_unknown") || detail.contains("JNI_GetMethodID_unknown") || detail.contains("JNI_GetStaticMethodID_unknown"))
-                        GuestStorageDiagnostics.explicitRuntimeFault("unresolved JNI class or method");
+                    String fault=GuestCompatibilityEvents.extractFault(detail);
+                    if(fault!=null) {
+                        if(fault.startsWith("JNI_") || GuestStorageDiagnostics.storageMessage(SystemClock.elapsedRealtime())==null)
+                            GuestStorageDiagnostics.explicitRuntimeFault(fault);
+                        GuestCompatibilityEvents.Event event=GuestCompatibilityEvents.report("Cocos2d-x",fault,
+                            "Guest stopped safely; this operation cannot be emulated yet.",true);
+                        if(event!=null)persistCompatibilityEvent(this,event);
+                    }
                 } catch(java.io.IOException ignored) {}
             }
             if (exit != 0 || (activityResumed && !restartWhenStopped && !restartingGuest && !isFinishing()))
