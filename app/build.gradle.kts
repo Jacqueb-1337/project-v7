@@ -153,7 +153,7 @@ tasks.matching { it.name == "preBuild" }.configureEach {
 }
 
 android {
-    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/pv7/catalog"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/pv7/catalog").get().asFile)
     namespace = "app.morphe.manager"
     compileSdk = 37
 
