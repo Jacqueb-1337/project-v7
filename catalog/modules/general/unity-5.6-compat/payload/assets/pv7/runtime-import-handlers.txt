@@ -561,3 +561,31 @@ wmemmove
 wmemset
 write
 writev
+# source-only AInputQueue_detachLooper
+# source-only AMotionEvent_getAction
+# source-only AMotionEvent_getHistoricalY
+# source-only AMotionEvent_getToolMinor
+# source-only AMotionEvent_getTouchMinor
+# source-only AMotionEvent_getX
+# source-only AMotionEvent_getY
+# source-only AMotionEvent_getYPrecision
+# source-only ASensorEventQueue_hasEvents
+# source-only ASensorEventQueue_setEventRate
+# source-only SHA1Final
+# source-only SHA1Update
+# source-only __android_log_vprint
+# source-only __google_potentially_blocking_region_begin
+# source-only dlerror
+# source-only execv
+# source-only getgrnam
+# source-only getpwnam
+# source-only getpwuid
+# source-only getuid
+# source-only lrand48
+# source-only memmem
+# source-only sched_get_priority_max
+# source-only sched_get_priority_min
+# source-only sched_getaffinity
+# source-only sched_setaffinity
+# source-only srand48
+# source-only strlcpy

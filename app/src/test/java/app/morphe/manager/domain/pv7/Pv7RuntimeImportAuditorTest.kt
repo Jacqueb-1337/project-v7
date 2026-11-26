@@ -51,6 +51,10 @@ class Pv7RuntimeImportAuditorTest {
             val covered = Pv7RuntimeImportAuditor.inspectUnity(apk, setOf("missing"))
             assertEquals(1, covered.handlerMatches)
             assertTrue(covered.gaps.isEmpty())
+            val source = Pv7RuntimeImportAuditor.inspectUnity(apk, emptySet(), setOf("missing"))
+            assertEquals(0, source.handlerMatches)
+            assertTrue(source.gaps.isEmpty())
+            assertEquals(listOf("missing"), source.sourceCandidates.map { it.symbol })
         } finally { apk.delete() }
     }
 

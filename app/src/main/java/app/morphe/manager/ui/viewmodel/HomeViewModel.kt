@@ -2508,11 +2508,12 @@ class HomeViewModel(
                 if (root.startsWith("file:")) File(root.removePrefix("file:"), "payload/$path").inputStream()
                 else app.assets.open(root.removePrefix("asset:") + "/payload/" + path)
             }
-            val handlers = input.bufferedReader().useLines { lines ->
-                lines.map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
-            }
+            val entries = input.bufferedReader().use { it.readLines().map(String::trim) }
+            val handlers = entries.filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+            val sourceOnly = entries.filter { it.startsWith("# source-only ") }
+                .map { it.removePrefix("# source-only ").trim() }.filter { it.isNotEmpty() }.toSet()
             check(handlers.isNotEmpty())
-            val report = Pv7RuntimeImportAuditor.inspectUnity(apk, handlers)
+            val report = Pv7RuntimeImportAuditor.inspectUnity(apk, handlers, sourceOnly)
             report.copy(notes = listOf("Runtime: $scope") + report.notes)
         }.getOrElse { Pv7RuntimeAudit(notes = listOf("No coverage manifest for $scope.")) }
         return target.copy(runtimeAudit = audit)
