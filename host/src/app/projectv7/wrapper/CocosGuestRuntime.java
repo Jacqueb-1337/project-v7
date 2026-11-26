@@ -502,10 +502,20 @@ public final class CocosGuestRuntime {
      * the wrapper's own Android OBB directory substituted for guest storage. */
     public static String resolveExpansionPath() {
         File file = new File(expansionPath);
-        boolean present = file.isFile() && file.canRead() && file.length()>0;
-        GuestStorageDiagnostics.report(expansionPath,present,
-            file.exists() ? "unreadable" : "missing",android.os.SystemClock.elapsedRealtime());
-        return present ? expansionPath : "";
+        // This callback is a real guest lookup, not a speculative directory scan.
+        // Verify the ZIP central directory before reporting this expansion usable.
+        String failure=null;
+        if(!file.exists()) failure="missing";
+        else if(!file.isFile() || !file.canRead()) failure="unreadable";
+        else {
+            try(java.util.zip.ZipFile zip=new java.util.zip.ZipFile(file)) {
+                if(zip.size()==0)failure="corrupt";
+            } catch(java.util.zip.ZipException invalid) { failure="corrupt"; }
+              catch(java.io.IOException unreadable) { failure="unreadable"; }
+        }
+        GuestStorageDiagnostics.report(expansionPath,failure==null,
+            failure==null?"":failure,android.os.SystemClock.elapsedRealtime());
+        return failure==null ? expansionPath : "";
     }
 
 

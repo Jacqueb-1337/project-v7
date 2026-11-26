@@ -21,6 +21,18 @@ public final class GuestStorageDiagnosticsTest {
         check(GuestStorageDiagnostics.message(120001)==null);
         GuestStorageDiagnostics.reset();
         check(GuestStorageDiagnostics.message(1)==null);
-        System.out.println("10 storage diagnostics checks passed");
+        GuestBlackFrameProbe black=new GuestBlackFrameProbe();
+        check(!black.observe(false,true,0));
+        check(!black.observe(true,true,1000));
+        check(!black.observe(true,true,2000));
+        check(!black.observe(true,true,3000));
+        check(black.observe(true,true,4000));
+        check(!black.observe(true,false,5000));
+        check(!black.observe(true,true,6000));
+        check(!black.observe(false,true,10000));
+        check(GuestBlackFrameProbe.isBlack(new int[]{0xff000000,0x00000000}));
+        check(!GuestBlackFrameProbe.isBlack(new int[]{0xff000000,0xff010000}));
+        check(!GuestBlackFrameProbe.isBlack(new int[0]));
+        System.out.println("21 storage and black-frame diagnostics checks passed");
     }
 }

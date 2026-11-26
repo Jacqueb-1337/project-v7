@@ -176,6 +176,11 @@ public final class MainActivity extends Activity {
     private volatile boolean guestPreparationFailed;
     private boolean sawGuestFrame;
     private boolean showingRecovery;
+    private final GuestBlackFrameProbe blackFrameProbe=new GuestBlackFrameProbe();
+    private boolean storageBlackWarning;
+    private boolean blackSamplePending;
+    private long nextBlackSample;
+    private int storageProbeGeneration;
     private long lastGuestFrameCount;
     private long lastGuestPresentCount;
     private boolean extendedHeartbeat = true;
@@ -560,9 +565,62 @@ public final class MainActivity extends Activity {
         dialog.getWindow().setLayout(-1,-1);
     }
 
+    private void clearStorageBlackWarning() {
+        blackFrameProbe.reset();
+        if(storageBlackWarning) {
+            storageBlackWarning=false;
+            if(!showingRecovery && baselineRunning)guestOverlay.setVisibility(View.GONE);
+        }
+    }
+
+    private void sampleStorageBlackFrame(long now) {
+        String hint=GuestStorageDiagnostics.storageMessage(now);
+        if(hint==null) {clearStorageBlackWarning();return;}
+        if(showingRecovery || blackSamplePending || now<nextBlackSample ||
+            !activityResumed || restartingGuest || !baselineRunning || !sawGuestFrame) return;
+        nextBlackSample=now+1000;
+        android.graphics.Bitmap sample=android.graphics.Bitmap.createBitmap(64,64,android.graphics.Bitmap.Config.ARGB_8888);
+        final int generation=storageProbeGeneration;
+        final Surface surface=renderSurface.getHolder().getSurface();
+        blackSamplePending=true;
+        try {
+            android.view.PixelCopy.request(surface,sample,result -> {
+                try {
+                    if(generation!=storageProbeGeneration || !activityResumed || restartingGuest ||
+                        showingRecovery || !baselineRunning || surfaceNeedsRebind || restartWhenStopped ||
+                        !surface.isValid()) return;
+                    long time=SystemClock.elapsedRealtime();
+                    String evidence=GuestStorageDiagnostics.storageMessage(time);
+                    if(evidence==null){clearStorageBlackWarning();return;}
+                    if(result!=android.view.PixelCopy.SUCCESS){blackFrameProbe.reset();return;}
+                    int[] pixels=new int[64*64];
+                    sample.getPixels(pixels,0,64,0,0,64,64);
+                    boolean black=GuestBlackFrameProbe.isBlack(pixels);
+                    if(!black){clearStorageBlackWarning();return;}
+                    if(!blackFrameProbe.observe(true,true,time))return;
+                    storageBlackWarning=true;
+                    guestOverlay.setVisibility(View.VISIBLE);
+                    guestStatus.setText("Guest is running but the screen is black\n\n"+evidence);
+                    guestStatus.setVisibility(View.VISIBLE);
+                    guestSpinner.setVisibility(View.GONE);
+                    guestAction.setText("Restart guest");
+                    guestAction.setVisibility(View.VISIBLE);
+                    guestAction.setOnClickListener(v -> restartGuestProcess("missing expansion recovery"));
+                } finally {
+                    sample.recycle();
+                    if(generation==storageProbeGeneration)blackSamplePending=false;
+                }
+            },supervisor);
+        } catch(RuntimeException unavailable) {
+            sample.recycle();blackSamplePending=false;blackFrameProbe.reset();
+        }
+    }
+
     private void showLostGuest() {
         if (restartingGuest || showingRecovery) return;
         showingRecovery = true;
+        storageBlackWarning=false;
+        blackFrameProbe.reset();
         startupStageCaption.setVisibility(View.GONE);
         if(performanceOverlay!=null)performanceOverlay.stop();
         String storageHint=GuestStorageDiagnostics.message(SystemClock.elapsedRealtime());
@@ -610,8 +668,9 @@ public final class MainActivity extends Activity {
                     sawGuestFrame = true;
                     showingRecovery = false;
                     recoveryBanner.setVisibility(View.GONE);
-                    guestOverlay.setVisibility(View.GONE);
+                    if(!storageBlackWarning)guestOverlay.setVisibility(View.GONE);
                 }
+                sampleStorageBlackFrame(now);
                 performanceOverlay.update(count,gameBufferWidth,gameBufferHeight,guestLoopReached&&!showingRecovery);
             } catch (UnsatisfiedLinkError unavailable) {
                 heartbeatAvailable = false;
@@ -1155,6 +1214,11 @@ public final class MainActivity extends Activity {
             guestPreparationRunning = true;
             guestPreparationFailed = false;
             GuestStorageDiagnostics.reset();
+            storageProbeGeneration++;
+            blackSamplePending=false;
+            storageBlackWarning=false;
+            nextBlackSample=0;
+            blackFrameProbe.reset();
             surfaceNeedsRebind = false;
             restartWhenStopped = false;
             if (!compatConfigured) {

@@ -34,10 +34,14 @@ public final class GuestStorageDiagnostics {
     }
     public static synchronized void explicitRuntimeFault(String reason){runtimeFault=reason;}
     public static synchronized String message(long now){
+        if(runtimeFault!=null)return "Guest runtime compatibility error: "+runtimeFault;
+        return storageMessage(now);
+    }
+    public static synchronized String storageMessage(long now){
+        if(runtimeFault!=null)return null;
         Failure last=null;
         for(Failure f:failures.values())
             if(now>=f.time && now-f.time<=MAX_AGE_MS)last=f;
-        if(runtimeFault!=null)return "Guest runtime compatibility error: "+runtimeFault;
         if(last==null)return null;
         String detail="missing".equals(last.reason)?"could not be found":
             "corrupt".equals(last.reason)?"appears corrupt":"could not be read";
