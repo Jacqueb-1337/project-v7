@@ -34,7 +34,7 @@ public final class CocosGuestRuntime {
         if (guestPackage == null || !guestPackage.matches("[A-Za-z0-9_]+(?:[.][A-Za-z0-9_]+)+") || guestVersion <= 0)
             throw new java.io.IOException("Original guest package/version missing");
         File expansion = new File(new File(shared,"obb"),"main."+guestVersion+"."+guestPackage+".obb");
-        expansionPath = expansion.isFile() ? expansion.getAbsolutePath() : "";
+        expansionPath = expansion.getAbsolutePath();
         Log.i(TAG,"Original expansion exists="+expansion.isFile());
     }
     static void reset(boolean bestPark) { nativePrepare(bestPark); }
@@ -437,8 +437,13 @@ public final class CocosGuestRuntime {
            relative.contains("\\") || relative.contains(":") ||
            java.util.Arrays.asList(relative.split("/")).contains("..")) return null;
         File expansion=new File(expansionPath);
-        if(!expansion.isFile()) return null;
+        if(!expansion.isFile()) {
+            GuestStorageDiagnostics.report(expansionPath,false,
+                expansion.exists() ? "unreadable" : "missing",android.os.SystemClock.elapsedRealtime());
+            return null;
+        }
         try(java.util.zip.ZipFile zip=new java.util.zip.ZipFile(expansion)) {
+            GuestStorageDiagnostics.report(expansionPath,true,"",android.os.SystemClock.elapsedRealtime());
             java.util.zip.ZipEntry entry=zip.getEntry(relative);
             String sourceName=relative;
             if(entry==null) sourceName=relative.substring(relative.indexOf('/')+1);
@@ -473,6 +478,13 @@ public final class CocosGuestRuntime {
             Log.i(TAG,"Guest resource staged "+virtualPath+
                     (entry==null?" from APK assets":" from OBB"));
             return output.getAbsolutePath();
+        } catch(java.util.zip.ZipException invalid) {
+            GuestStorageDiagnostics.report(expansionPath,false,"corrupt",android.os.SystemClock.elapsedRealtime());
+            throw invalid;
+        } catch(java.io.IOException failure) {
+            if(!expansion.canRead()) GuestStorageDiagnostics.report(expansionPath,false,
+                "unreadable",android.os.SystemClock.elapsedRealtime());
+            throw failure;
         }
     }
     public static void recordGuestAchievement(String id) {
@@ -489,7 +501,11 @@ public final class CocosGuestRuntime {
     /** Equivalent to the original game version-16 expansion lookup, with
      * the wrapper's own Android OBB directory substituted for guest storage. */
     public static String resolveExpansionPath() {
-        return expansionPath;
+        File file = new File(expansionPath);
+        boolean present = file.isFile() && file.canRead() && file.length()>0;
+        GuestStorageDiagnostics.report(expansionPath,present,
+            file.exists() ? "unreadable" : "missing",android.os.SystemClock.elapsedRealtime());
+        return present ? expansionPath : "";
     }
 
 

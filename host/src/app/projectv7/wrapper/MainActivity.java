@@ -565,12 +565,13 @@ public final class MainActivity extends Activity {
         showingRecovery = true;
         startupStageCaption.setVisibility(View.GONE);
         if(performanceOverlay!=null)performanceOverlay.stop();
-        if (sawGuestFrame && recoveryBanner != null) {
+        String storageHint=GuestStorageDiagnostics.message(SystemClock.elapsedRealtime());
+        if (storageHint==null && sawGuestFrame && recoveryBanner != null) {
             recoveryBanner.setVisibility(View.VISIBLE);
             return;
         }
         guestOverlay.setVisibility(View.VISIBLE);
-        guestStatus.setText("Lost connection to the guest");
+        guestStatus.setText("Lost connection to the guest"+(storageHint==null?"":"\n\n"+storageHint));
         guestStatus.setVisibility(View.VISIBLE);
         guestSpinner.setVisibility(View.VISIBLE);
         guestAction.setText("Restart guest");
@@ -1153,6 +1154,7 @@ public final class MainActivity extends Activity {
             baselineStarted = true;
             guestPreparationRunning = true;
             guestPreparationFailed = false;
+            GuestStorageDiagnostics.reset();
             surfaceNeedsRebind = false;
             restartWhenStopped = false;
             if (!compatConfigured) {
@@ -1352,7 +1354,19 @@ public final class MainActivity extends Activity {
                 started = true;
             }
             cocosStage = "Starting Cocos translator";
-            int exit = CocosGuestRuntime.run(library,new File(getFilesDir(),"pv7-cocos-runtime.log"),surface);
+            File report=new File(getFilesDir(),"pv7-cocos-runtime.log");
+            int exit = CocosGuestRuntime.run(library,report,surface);
+            if(exit!=0) {
+                try(java.io.RandomAccessFile log=new java.io.RandomAccessFile(report,"r")) {
+                    long offset=Math.max(0,log.length()-16384);
+                    log.seek(offset);
+                    byte[] tail=new byte[(int)(log.length()-offset)];
+                    log.readFully(tail);
+                    String detail=new String(tail,java.nio.charset.StandardCharsets.UTF_8);
+                    if(detail.contains("JNI_FindClass_unknown") || detail.contains("JNI_GetMethodID_unknown"))
+                        GuestStorageDiagnostics.explicitRuntimeFault("unresolved JNI class or method");
+                } catch(java.io.IOException ignored) {}
+            }
             if (exit != 0 || (activityResumed && !restartWhenStopped && !restartingGuest && !isFinishing()))
                 guestPreparationFailed = true;
             Log.i("PV7HOST","PV7 Cocos backend exit="+exit);
