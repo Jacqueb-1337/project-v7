@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T19:53:22",
-  "description": "## [1.43.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.0...v1.43.1) (2026-11-26)\n\n\n### Bug Fixes\n\n* **catalog:** label Guns and Spurs as experimental playable ([dff9a62](https://github.com/Jacqueb-1337/project-v7/commit/dff9a62587f825a5dc67c2a27f200513c2696e46))",
-  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.43.1/project-v7-patcher-1.43.1.apk",
-  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.43.1/project-v7-patcher-1.43.1.apk.asc",
-  "version": "1.43.1"
+  "created_at": "2026-11-26T20:48:02",
+  "description": "# [1.44.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.1...v1.44.0) (2026-11-26)\n\n\n### Features\n\n* experimental game catalog opt-in and download progress ([b59d153](https://github.com/Jacqueb-1337/project-v7/commit/b59d1532c676deff43bbbad9c25fd78c7f60035e))",
+  "download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.44.0/project-v7-patcher-1.44.0.apk",
+  "signature_download_url": "https://github.com/Jacqueb-1337/project-v7/releases/download/v1.44.0/project-v7-patcher-1.44.0.apk.asc",
+  "version": "1.44.0"
 }
