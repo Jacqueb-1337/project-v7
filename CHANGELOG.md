@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.3...v1.40.0) (2026-11-26)
+
+
+### Features
+
+* **pv7:** searchable game catalog and tested Best Park compatibility ([#31](https://github.com/Jacqueb-1337/project-v7/issues/31)) ([1eeffa0](https://github.com/Jacqueb-1337/project-v7/commit/1eeffa08141a7dbd7a0aeb1af67aee3183f63b65))
+
 ## [1.39.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.2...v1.39.3) (2026-11-26)
 
 
