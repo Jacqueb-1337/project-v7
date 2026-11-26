@@ -2,6 +2,8 @@
 """Validate the Project V7 compatibility catalog. No third-party dependencies."""
 
 import argparse
+import gzip
+import hashlib
 import json
 import sys
 from collections import Counter
@@ -93,7 +95,7 @@ def main():
         ops = module.get("operations")
         if not isinstance(ops, list) or any(not isinstance(o, dict) or not isinstance(o.get("type"), str) for o in ops):
             error(path, "module.operations must be a list of typed objects")
-        if module.get("kind") == "game" and ops == [] and not module.get("payloadFiles"):
+        if module.get("kind") == "game" and ops == [] and not module.get("payloadFiles") and not module.get("dependencies"):
             warnings.append(f"{path}: game module has no patch operations or payloads")
         deps = module.get("dependencies", [])
         if not isinstance(deps, list) or any(not isinstance(dep, str) for dep in deps):
@@ -110,6 +112,18 @@ def main():
                     error(path, f"invalid payload path: {payload!r}")
                 elif not (root / path).parent.joinpath("payload", payload).is_file():
                     error(path, f"missing payload file: payload/{payload}")
+
+        if "assets/pv7/runtime-import-handlers.txt" in payloads:
+            directory = (root / path).parent / "payload"
+            manifest = directory / "assets/pv7/runtime-import-handlers.txt"
+            native = directory / "lib/arm64-v8a/libpv7host.so.pv7z"
+            try:
+                with gzip.open(native, "rb") as stream:
+                    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                if "# ARM64 host SHA256 " + digest not in manifest.read_text().splitlines():
+                    error(path, "runtime manifest hash does not match native payload")
+            except (OSError, ValueError) as exc:
+                error(path, f"cannot validate runtime manifest: {exc}")
 
     for ident, deps in dependencies.items():
         for dep in deps:

@@ -74,4 +74,16 @@ class Pv7UntestedProfileTest {
         assertTrue(result.issues.isEmpty())
         assertNull(Pv7CatalogResolver.resolve(target, listOf(mod), listOf(profile.copy(playable = false))).profile)
     }
+    @Test fun unity56PresetRequiresSharedRuntime() {
+        val target = Pv7AppTarget("com.sakis25games.gunsandspurs", "1.3.3", setOf("armeabi-v7a"), Pv7EngineFingerprint("unity", "5.6.1f1", "libunity.so"))
+        val core = Pv7ModuleManifest(id = "core-compat", name = "Core", version = "1.0", kind = Pv7ModuleKind.GENERAL, description = "Core")
+        val engine = core.copy(id = Pv7GuestBackend.UNITY56_MODULE, name = "Unity 5.6", dependencies = listOf(core.id), targets = Pv7TargetSelector(engines = listOf("unity"), engineVersions = listOf("5.6.1f1")))
+        val game = core.copy(id = "gunsandspurs-compat", name = "Guns", kind = Pv7ModuleKind.GAME, dependencies = listOf(engine.id), targets = Pv7TargetSelector(packageIds = listOf(target.packageId)))
+        val profile = Pv7CompatibilityProfile(id = "guns", packageId = target.packageId, tested = false, playable = true, recommendedModules = listOf(game.id))
+        val result = Pv7CatalogResolver.resolve(target, listOf(core, engine, game), listOf(profile))
+        assertEquals(setOf(core.id, engine.id, game.id), result.selectedModuleIds)
+        assertTrue(result.issues.isEmpty())
+        assertTrue(Pv7GuestBackend.canProceed(target, result.selectedModuleIds))
+        assertFalse(Pv7GuestBackend.canProceed(target, setOf(core.id)))
+    }
 }

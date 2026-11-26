@@ -72,3 +72,13 @@ Patch 09 implements a progress-sensitive startup execution budget (up to one mil
 Patch 10 retries failed GLSL ES 100 shaders with the two observed malformed header prefixes repaired. The Unity splash was visually reported on Stage 12. Stage 13 logged 12 shader recoveries and 12 remaining failures (extension directives after precision declarations, including repeated attempts). No game scene or playability is verified.
 
 Patch 11 adds sampled render-thread wait ownership and periodic worker snapshots. Stage 13 identified guest worker 33 holding recursive mutex 0x055f9cb4 while main render polls it. Worker samples repeatedly show 0x031be15c, corresponding to the Mono mempool growth loop assuming the observed Mono base of 0x03000000. Investigate allocator operands and provenance before modifying synchronization. No lock bypass is implemented. Patches 09-11 round-trip against saved stage sources with LF normalization. All three isolated ARM64 builds compiled, signed and installed; production CNR regression is not tested.
+
+## Stage 25 import audit triage
+
+The preserved Stage 25 dispatch snapshot contains 589 candidate names, 561 of which also appear as NUL-terminated byte strings in the released host. The other names are advisory source-only evidence; the optimizer may remove strings, and source evidence alone does not verify the compiled dispatch. Of 28 previously reported potential function gaps in Guns and Spurs 1.3.3, 18 have explicit source comparisons. Ten remain outside those comparisons:
+
+- abort, exit, _exit: termination diagnostics and guest halt, not normal return handlers.
+- __assert2, __cxa_begin_cleanup, __cxa_call_unexpected, __cxa_type_match: assertion/exception paths requiring review.
+- getnameinfo, realpath, statfs: no explicit matching bridge comparison found.
+
+Eight data imports remain under review. The source initializes __page_size and __stack_chk_guard; this is not evidence of correct handling for the other six. Do not implement no-op stubs simply to reduce the audit count.

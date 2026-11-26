@@ -10,7 +10,8 @@
     "modules/general/launcher-icon/module.json",
     "modules/general/unity-4.6-compat/module.json",
     "modules/general/wrapper-package-id/module.json",
-    "modules/games/com.sakis25games.gunsandspurs/gunsandspurs-compat/module.json"
+    "modules/games/com.sakis25games.gunsandspurs/gunsandspurs-compat/module.json",
+    "modules/general/unity-5.6-compat/module.json"
   ],
   "profiles": [
     "profiles/com.dts.freefireth/1.30.0.json",

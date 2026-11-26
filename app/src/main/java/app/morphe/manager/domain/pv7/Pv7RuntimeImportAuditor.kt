@@ -14,7 +14,8 @@ data class Pv7RuntimeAudit(
     val gaps: List<Pv7RuntimeGap> = emptyList(),
     val dataSymbols: List<Pv7RuntimeGap> = emptyList(),
     val notes: List<String> = emptyList(),
-    val complete: Boolean = false
+    val complete: Boolean = false,
+    val sourceCandidates: List<Pv7RuntimeGap> = emptyList()
 )
 
 /** Static ELF32 relocation coverage. Does not execute the input or claim runtime support. */
@@ -27,7 +28,15 @@ object Pv7RuntimeImportAuditor {
     private data class Import(val name: String, val library: String, val weak: Boolean, val function: Boolean)
     private data class Image(val exports: Set<String>, val imports: List<Import>)
 
-    fun inspectUnity(apk: File, handlers: Set<String>): Pv7RuntimeAudit {
+    fun runtimeOverride(modules: List<Pv7ModuleManifest>): Pv7ModuleManifest? =
+        modules.sortedWith(compareBy<Pv7ModuleManifest> {
+            if (it.kind == Pv7ModuleKind.GENERAL) 0 else 1
+        }.thenBy { it.id }).lastOrNull { module ->
+            module.payloadFiles.any { it == "lib/arm64-v8a/libpv7host.so" ||
+                it == "lib/arm64-v8a/libpv7host.so.pv7z" }
+        }
+
+    fun inspectUnity(apk: File, handlers: Set<String>, sourceOnly: Set<String> = emptySet()): Pv7RuntimeAudit {
         return try {
             ZipFile(apk).use { zip ->
                 val entries = zip.entries().asSequence().filterNot { it.isDirectory }.toList()
@@ -62,6 +71,7 @@ object Pv7RuntimeImportAuditor {
                 val grouped = images.flatMap { it.imports }.groupBy { it.name }
                 val gaps = mutableListOf<Pv7RuntimeGap>()
                 val data = mutableListOf<Pv7RuntimeGap>()
+                val source = mutableListOf<Pv7RuntimeGap>()
                 var guest = 0
                 var bridge = 0
                 for ((name, refs) in grouped.toSortedMap()) {
@@ -70,10 +80,11 @@ object Pv7RuntimeImportAuditor {
                         name in exports -> guest++
                         refs.none { it.function } -> data += row
                         name.substringBefore('@') in handlers -> bridge++
+                        name.substringBefore('@') in sourceOnly -> source += row
                         else -> gaps += row
                     }
                 }
-                Pv7RuntimeAudit(abi, grouped.size, guest, bridge, gaps, data, notes, missing.isEmpty() && extra.isEmpty())
+                Pv7RuntimeAudit(abi, grouped.size, guest, bridge, gaps, data, notes, missing.isEmpty() && extra.isEmpty(), source)
             }
         } catch (e: Exception) {
             Pv7RuntimeAudit(notes = listOf("Native import inspection incomplete: " + (e.message ?: "invalid ELF")))

@@ -193,17 +193,20 @@ internal fun Pv7CompatibilityDialog(
                                 color = if (audit.gaps.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium)
                         }
+                        if (audit.sourceCandidates.isNotEmpty())
+                            Text("${audit.sourceCandidates.size} source-only handler candidates (binary unconfirmed)",
+                                style = MaterialTheme.typography.bodySmall)
                         if (!audit.complete) Text("Inspection incomplete", color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall)
                         audit.notes.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                         Text("A symbol match does not guarantee correct behavior. Dynamic lookups and JNI calls are not audited.",
                             style = MaterialTheme.typography.bodySmall)
-                        if (audit.gaps.isNotEmpty() || audit.dataSymbols.isNotEmpty()) {
+                        if (audit.gaps.isNotEmpty() || audit.dataSymbols.isNotEmpty() || audit.sourceCandidates.isNotEmpty()) {
                             OutlinedButton(onClick = { expanded = !expanded }) {
                                 Text(if (expanded) "Hide symbol details" else "View symbol details")
                             }
                             if (expanded) {
-                                (audit.gaps.map { it to "Missing handler" } + audit.dataSymbols.map { it to "Data / untyped" })
+                                (audit.gaps.map { it to "Missing handler" } + audit.dataSymbols.map { it to "Data / untyped" } + audit.sourceCandidates.map { it to "Source-only candidate" })
                                     .forEach { (gap, kind) ->
                                         Text(gap.symbol, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
                                         Text(kind + (if (gap.weak) " (weak import)" else "") + " | " + gap.libraries.joinToString(),

@@ -35,8 +35,8 @@ class Pv7Unity56SmokeTest {
             val assets = (field.get(null) as Unsafe).allocateInstance(AssetManager::class.java) as AssetManager
             val output = System.getenv("PV7_UNITY56_OUTPUT")?.let(::File) ?: File(root, "output.apk")
             val catalog = sequenceOf(File("catalog"), File("../catalog")).first { it.isDirectory }
-            val dir = File(catalog, "modules/games/com.sakis25games.gunsandspurs/gunsandspurs-compat")
-            val compat = Pv7ModuleManifest(id = "gunsandspurs-compat", name = "Guns", version = "0.1.0", kind = Pv7ModuleKind.GAME, description = "Stage25", payloadFiles = listOf("lib/arm64-v8a/libpv7host.so.pv7z"), sourceAssetPath = "file:" + dir.absolutePath)
+            val dir = File(catalog, "modules/general/unity-5.6-compat")
+            val compat = Pv7ModuleManifest(id = "unity-5.6-compat", name = "Unity 5.6", version = "0.1.0", kind = Pv7ModuleKind.GENERAL, description = "Stage25", payloadFiles = listOf("lib/arm64-v8a/libpv7host.so.pv7z"), sourceAssetPath = "file:" + dir.absolutePath)
             assembler.assembleFromTemplate(template, payload, output,
                 Pv7WrapperConfig("com.sakis25games.gunsandspurs.pv7", "Guns n Spurs PV7",
                     "1.3.3", 18, guestPackageName = target.packageId),

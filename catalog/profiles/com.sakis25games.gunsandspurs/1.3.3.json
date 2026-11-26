@@ -4,7 +4,7 @@
   ],
   "blacklist": [],
   "engineVersions": [
-    "5.6.*"
+    "5.6.1f1"
   ],
   "engines": [
     "unity"
@@ -15,6 +15,7 @@
   "packageId": "com.sakis25games.gunsandspurs",
   "recommendedModules": [
     "core-compat",
+    "unity-5.6-compat",
     "gunsandspurs-compat"
   ],
   "tested": false,

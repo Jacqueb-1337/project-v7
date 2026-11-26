@@ -51,6 +51,10 @@ class Pv7RuntimeImportAuditorTest {
             val covered = Pv7RuntimeImportAuditor.inspectUnity(apk, setOf("missing"))
             assertEquals(1, covered.handlerMatches)
             assertTrue(covered.gaps.isEmpty())
+            val source = Pv7RuntimeImportAuditor.inspectUnity(apk, emptySet(), setOf("missing"))
+            assertEquals(0, source.handlerMatches)
+            assertTrue(source.gaps.isEmpty())
+            assertEquals(listOf("missing"), source.sourceCandidates.map { it.symbol })
         } finally { apk.delete() }
     }
 
@@ -62,5 +66,14 @@ class Pv7RuntimeImportAuditorTest {
             assertFalse(audit.complete)
             assertTrue(audit.notes.isNotEmpty())
         } finally { apk.delete() }
+    }
+    @Test fun selectsLastNativeOverrideInAssemblerOrder() {
+        val base = Pv7ModuleManifest(id = "core", name = "Core", version = "1", kind = Pv7ModuleKind.GENERAL, description = "Core")
+        val engine = base.copy(id = "unity-5.6-compat", payloadFiles = listOf("lib/arm64-v8a/libpv7host.so.pv7z"))
+        val game = base.copy(id = "game", kind = Pv7ModuleKind.GAME)
+        val override = game.copy(payloadFiles = listOf("lib/arm64-v8a/libpv7host.so"))
+        assertNull(Pv7RuntimeImportAuditor.runtimeOverride(listOf(base, game)))
+        assertEquals(engine, Pv7RuntimeImportAuditor.runtimeOverride(listOf(game, engine, base)))
+        assertEquals(override, Pv7RuntimeImportAuditor.runtimeOverride(listOf(override, engine)))
     }
 }
