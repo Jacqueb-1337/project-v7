@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.41.0...v1.42.0) (2026-11-26)
+
+
+### Features
+
+* **supervisor:** interactive compatibility recovery and error reports ([3b0e1fd](https://github.com/Jacqueb-1337/project-v7/commit/3b0e1fd43e307449985b04abdb714a20a4a24acc))
+
 # [1.41.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.40.0...v1.41.0) (2026-11-26)
 
 
