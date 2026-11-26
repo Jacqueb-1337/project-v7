@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.morphe.manager.ui.screen.shared.AppIcon
 import app.morphe.manager.R
 import app.morphe.manager.domain.pv7.Pv7GameCatalogSearch
 import app.morphe.manager.domain.pv7.Pv7SupportedApp
@@ -61,7 +62,10 @@ fun Pv7GameCatalogScreen(
                 }
                 items(results, key = { it.packageName }) { entry ->
                     Card(Modifier.fillMaxWidth().clickable { onGameClick(entry) }) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                            AppIcon(packageName = entry.packageName, remoteIconUrl = entry.iconUrl,
+                                contentDescription = null, modifier = Modifier.size(56.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(entry.displayName, style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.weight(1f))
@@ -77,6 +81,7 @@ fun Pv7GameCatalogScreen(
                             entry.notes?.takeIf { it.isNotBlank() }?.let {
                                 Text(it, style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             }
                         }
                     }

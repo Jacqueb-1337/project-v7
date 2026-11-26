@@ -9,5 +9,6 @@
   "engine": "Cocos2d-x",
   "experimental": false,
   "notes": "Gameplay tested with PV7 1.39.3. Requires your original v1.2.1 APK (version code 16) and original OBB. Legacy online services may be unavailable.",
-  "gameplayTested": true
+  "gameplayTested": true,
+  "iconUrl": "https://raw.githubusercontent.com/Jacqueb-1337/project-v7/main/catalog/apps/icons/com.turner.bestparkintheuniverse.png"
 }
