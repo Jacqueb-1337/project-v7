@@ -106,6 +106,7 @@ fun HomeScreen(
     val availablePatches by homeViewModel.availablePatches.collectAsStateWithLifecycle(0)
     // Atomic home state - null means pipeline is still initializing (shimmer)
     val homeAppState by homeViewModel.apps.homeAppState.collectAsStateWithLifecycle()
+    val showExperimentalPv7Games by prefs.showExperimentalPv7Games.getAsState()
     val catalogApps by homeViewModel.apps.pv7SupportedApps.collectAsStateWithLifecycle()
     var catalogOpen by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = catalogOpen) { catalogOpen = false }
@@ -285,7 +286,7 @@ fun HomeScreen(
 
     if (catalogOpen) {
         Pv7GameCatalogScreen(
-            apps = catalogApps.values,
+            apps = Pv7GameCatalogSearch.visibleGames(catalogApps.values, showExperimentalPv7Games),
             loading = catalogApps.isEmpty() && bundlePipelineLoading,
             onBack = { catalogOpen = false },
             onRefresh = onRefresh,

@@ -13,6 +13,11 @@ class Pv7GameCatalogSearchTest {
         assertEquals(listOf(best), Pv7GameCatalogSearch.search(apps, "experimental 1.2.1"))
         assertTrue(Pv7GameCatalogSearch.search(apps, "missing").isEmpty())
     }
+    @Test fun experimentalGamesAreOptIn() {
+        assertEquals(listOf(cnr), Pv7GameCatalogSearch.visibleGames(apps, false))
+        assertEquals(apps, Pv7GameCatalogSearch.visibleGames(apps, true))
+        assertTrue(Pv7GameCatalogSearch.search(Pv7GameCatalogSearch.visibleGames(apps, false), "experimental").isEmpty())
+    }
     @Test fun homeContainsOnlyOwnedCatalogGames() {
         val packages = setOf(best.packageName, cnr.packageName)
         assertFalse(Pv7GameCatalogSearch.showOnHome(best.packageName, packages, false, false))

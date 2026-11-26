@@ -196,6 +196,10 @@ class SettingsViewModel(
     }
 
     /** Enables/disables native library stripping for plain APKs, and simultaneously split APK filtering for split bundles. */
+    fun setShowExperimentalPv7Games(enabled: Boolean) = viewModelScope.launch {
+        prefs.showExperimentalPv7Games.update(enabled)
+    }
+
     fun setStripUnusedNativeLibs(enabled: Boolean) = viewModelScope.launch {
         prefs.stripUnusedNativeLibs.update(enabled)
     }

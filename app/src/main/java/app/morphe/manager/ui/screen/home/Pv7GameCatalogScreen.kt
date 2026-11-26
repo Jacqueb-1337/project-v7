@@ -19,6 +19,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.morphe.manager.ui.screen.shared.AppIcon
 import app.morphe.manager.R
+import app.morphe.manager.domain.pv7.Pv7CatalogLoader
+import app.morphe.manager.domain.pv7.Pv7CatalogRefreshPhase
 import app.morphe.manager.domain.pv7.Pv7GameCatalogSearch
 import app.morphe.manager.domain.pv7.Pv7SupportedApp
 
@@ -31,6 +33,7 @@ fun Pv7GameCatalogScreen(
     onPickApk: () -> Unit,
     onGameClick: (Pv7SupportedApp) -> Unit
 ) {
+    val progress by Pv7CatalogLoader.refreshProgress.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(apps, query) { Pv7GameCatalogSearch.search(apps, query) }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
@@ -38,7 +41,40 @@ fun Pv7GameCatalogScreen(
             IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, stringResource(R.string.pv7_game_catalog_back)) }
             Text(stringResource(R.string.pv7_game_catalog_title), style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
+            IconButton(onClick = onRefresh, enabled = progress?.active != true) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
+        }
+        progress?.let { state ->
+            if (state.active || state.phase == Pv7CatalogRefreshPhase.FAILED) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val label = when (state.phase) {
+                        Pv7CatalogRefreshPhase.INDEX -> "Checking catalog"
+                        Pv7CatalogRefreshPhase.MODULES -> "Modules: ${state.completed} / ${state.total}"
+                        Pv7CatalogRefreshPhase.PROFILES -> "Profiles: ${state.completed} / ${state.total}"
+                        Pv7CatalogRefreshPhase.APPS -> "Games: ${state.completed} / ${state.total}"
+                        Pv7CatalogRefreshPhase.VALIDATING -> "Validating catalog"
+                        Pv7CatalogRefreshPhase.APPLYING -> "Applying catalog"
+                        Pv7CatalogRefreshPhase.FAILED -> "Refresh failed. Showing available catalog."
+                        else -> "Catalog updated"
+                    }
+                    Text(label, style = MaterialTheme.typography.labelMedium)
+                    if (state.active) {
+                        if (state.item.isNotBlank()) Text(state.item, style = MaterialTheme.typography.bodySmall)
+                        if (state.total > 0) {
+                            LinearProgressIndicator(progress = { state.completed.toFloat().div(state.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                        }
+                        val received = String.format(java.util.Locale.ROOT, "%.2f MB", state.bytes / 1000000.0)
+                        if (state.totalBytes > 0) {
+                            val fraction = (state.bytes.toFloat() / state.totalBytes).coerceIn(0f, 1f)
+                            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                            Text(received + " / " + String.format(java.util.Locale.ROOT, "%.2f MB", state.totalBytes / 1000000.0) + " (" + (fraction * 100).toInt() + "%)", style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            if (state.bytes > 0) Text(received, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
         }
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
