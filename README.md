@@ -4,7 +4,7 @@
 
 <h1 align="center">Project V7</h1>
 
-<h3 align="center">Old games. New devices.</h3>
+<h3 align="center">Old games, new devices.</h3>
 
 <p align="center">
   Run legacy <strong>32-bit Android apps and games</strong> on modern <strong>64-bit-only Android devices</strong>.<br>
