@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.45.0...v1.46.0) (2026-11-26)
+
+
+### Features
+
+* on-demand compatibility module downloads and storage management ([#40](https://github.com/Jacqueb-1337/project-v7/issues/40)) ([cd54322](https://github.com/Jacqueb-1337/project-v7/commit/cd5432232f8d142944ec21ad2629a9d22c1e2aef))
+
 # [1.45.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.44.0...v1.45.0) (2026-11-26)
 
 
