@@ -1,3 +1,10 @@
+## [1.39.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.0...v1.39.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **pv7:** recognize Best Park 1.2.1 and require JNI compatibility ([b8c7e8c](https://github.com/Jacqueb-1337/project-v7/commit/b8c7e8cc712a1815019e22b0ad9c527e09247516))
+
 # [1.39.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.38.0...v1.39.0) (2026-11-26)
 
 
