@@ -1,3 +1,10 @@
+## [1.39.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.2...v1.39.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* **pv7:** remove Cocos setjmp cap and report compatibility events ([6a31294](https://github.com/Jacqueb-1337/project-v7/commit/6a3129431020586702a8ac546dc2c8a1bd6928ab))
+
 ## [1.39.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.1...v1.39.2) (2026-11-26)
 
 
