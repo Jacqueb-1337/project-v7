@@ -1,7 +1,7 @@
 {
   "id": "cocos2dx-compat",
   "name": "Cocos2d-x Compatibility",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "general",
   "category": "Engine compatibility",
   "description": "Experimental ARM32 Cocos2d-x JNI/GLES runtime with common PV7 supervisor. Other Cocos versions and custom native dependencies are unverified.",

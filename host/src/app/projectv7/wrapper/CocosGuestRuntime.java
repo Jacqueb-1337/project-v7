@@ -496,6 +496,18 @@ public final class CocosGuestRuntime {
         }
     }
 
+    public static synchronized void incrementGuestAchievement(String id,int steps) {
+        Activity owner=active;
+        if(owner==null || id==null) throw new IllegalStateException("Achievement unavailable");
+        if(steps<=0 || id.isEmpty())return;
+        // Separate preference namespace: existing unlock booleans are not overwritten.
+        android.content.SharedPreferences progress=owner.getSharedPreferences(
+            "PV7GuestAchievementProgress",android.content.Context.MODE_PRIVATE);
+        int next=GuestAchievementProgress.increment(progress.getInt(id,0),steps);
+        if(!progress.edit().putInt(id,next).commit())
+            throw new IllegalStateException("Unable to save achievement progress");
+    }
+
     private static volatile String expansionPath = "";
 
     /** Equivalent to the original game version-16 expansion lookup, with

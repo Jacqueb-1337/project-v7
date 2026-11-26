@@ -1427,7 +1427,7 @@ public final class MainActivity extends Activity {
                     byte[] tail=new byte[(int)(log.length()-offset)];
                     log.readFully(tail);
                     String detail=new String(tail,java.nio.charset.StandardCharsets.UTF_8);
-                    if(detail.contains("JNI_FindClass_unknown") || detail.contains("JNI_GetMethodID_unknown"))
+                    if(detail.contains("JNI_FindClass_unknown") || detail.contains("JNI_GetMethodID_unknown") || detail.contains("JNI_GetStaticMethodID_unknown"))
                         GuestStorageDiagnostics.explicitRuntimeFault("unresolved JNI class or method");
                 } catch(java.io.IOException ignored) {}
             }
