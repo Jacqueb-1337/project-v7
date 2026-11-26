@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.zip.GZIPInputStream
 import java.util.zip.ZipFile
 
 data class Pv7WrapperConfig(
@@ -22,13 +23,15 @@ data class Pv7WrapperConfig(
     val requestedPermissions: Set<String> = emptySet()
 )
 
+interface Pv7StagedGuest { val root: File }
+
 data class Pv7GuestPayload(
-    val root: File,
+    override val root: File,
     val libMain: File,
     val libUnity: File,
     val libMono: File,
     val dataDir: File
-)
+) : Pv7StagedGuest
 
 class Pv7WrapperAssembler {
     companion object {
@@ -45,7 +48,7 @@ class Pv7WrapperAssembler {
             abis = Pv7EngineDetector.detectAbis(inputApk),
             engine = Pv7EngineDetector.detect(inputApk)
         )
-        if (!Pv7GuestBackend.canBuild(target)) {
+        if (!Pv7GuestBackend.isUnity(target)) {
             throw IOException("Unsupported PV7 guest format. " + Pv7GuestBackend.explanation(target))
         }
 
@@ -86,15 +89,25 @@ class Pv7WrapperAssembler {
                 throw IOException("APK has no legacy Unity assets/bin/Data payload")
             }
 
-            dataEntries.forEach { entry ->
-                val relative = entry.name.removePrefix("assets/bin/Data/")
-                if (relative.isBlank()) return@forEach
-                val target = safeChild(dataDir, relative)
-                target.parentFile?.mkdirs()
-                zip.getInputStream(entry).use { input ->
-                    FileOutputStream(target).use(input::copyTo)
+            // Preserve guest assets at their original APK paths. The host's
+            // private namespaces must never be supplied by an untrusted guest.
+            val assetRoot = File(stagingRoot, "assets")
+            zip.entries().asSequence()
+                .filterNot { it.isDirectory }
+                .filter { it.name.startsWith("assets/") }
+                .filterNot { entry ->
+                    val relative = entry.name.removePrefix("assets/")
+                    relative.substringBefore('/') in setOf("pv7", "guest", "bootstrap")
                 }
-            }
+                .forEach { entry ->
+                    val relative = entry.name.removePrefix("assets/")
+                    if (relative.isBlank()) return@forEach
+                    val target = safeChild(assetRoot, relative)
+                    target.parentFile?.mkdirs()
+                    zip.getInputStream(entry).use { input ->
+                        FileOutputStream(target).use(input::copyTo)
+                    }
+                }
         }
 
         val managed = File(dataDir, "Managed")
@@ -125,7 +138,7 @@ class Pv7WrapperAssembler {
 
     fun assembleFromTemplate(
         templateApk: File,
-        guestPayload: Pv7GuestPayload,
+        guestPayload: Pv7StagedGuest,
         outputApk: File,
         config: Pv7WrapperConfig,
         assets: AssetManager,
@@ -145,7 +158,7 @@ class Pv7WrapperAssembler {
             config.versionName?.takeIf { it.isNotBlank() }?.let(manifest::setVersionName)
             config.versionCode?.takeIf { it > 0 }?.let(manifest::setVersionCode)
 
-            config.requestedPermissions
+            (config.requestedPermissions + "android.permission.POST_NOTIFICATIONS")
                 .filter { it.isNotBlank() }
                 .forEach { permission ->
                     if (manifest.getUsesPermission(permission) == null) {
@@ -153,14 +166,55 @@ class Pv7WrapperAssembler {
                     }
                 }
             applyDocumentsProviders(manifest, selectedModules, config.packageName)
+            applyGuestRecoveryActivity(manifest)
 
-            replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
-            replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
-            replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
-            addDirectory(module, guestPayload.dataDir, "assets/bin/Data")
+            when (guestPayload) {
+                is Pv7GuestPayload -> {
+                    replaceFile(module, guestPayload.libMain, "assets/guest/libmain.so")
+                    replaceFile(module, guestPayload.libUnity, "assets/guest/libunity.so")
+                    replaceFile(module, guestPayload.libMono, "assets/guest/libmono.so")
+                }
+                is Pv7CocosGuestPayload -> {
+                    validateCocosPayload(guestPayload, config, selectedModules)
+                    replaceFile(module, guestPayload.nativeLibrary, "assets/guest/libgame.so")
+                    // Use the existing proven Android AssetManager bridge; keep original.apk
+                    // in scratch only, never bundle a second copy of the APK.
+                    copyCocosAssets(guestPayload)
+                }
+                else -> throw IOException("Unknown guest backend")
+            }
+            // The staged asset root contains both Unity Data and other original
+            // guest assets, such as a managed bootstrap at assets/CNRModManager.dll.
+            val guestAssets = File(guestPayload.root, "assets")
+            guestAssets.listFiles().orEmpty()
+                .filterNot { it.name in setOf("pv7", "guest", "bootstrap") }
+                .sortedBy { it.name }
+                .forEach { asset ->
+                    val apkPath = "assets/" + asset.name
+                    if (asset.isDirectory) addDirectory(module, asset, apkPath)
+                    else if (asset.isFile) replaceFile(module, asset, apkPath)
+                }
             overlayModulePayloads(module, assets, selectedModules, guestPayload.root)
 
             applyGenericGuestStoragePaths(module, config.guestPackageName?.takeIf { it.isNotBlank() } ?: config.packageName, guestPayload.root, config.versionCode)
+            if (guestPayload is Pv7CocosGuestPayload) {
+                val path = "assets/pv7/host.properties"
+                val prior = module.getInputSource(path)?.openStream()?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val props = java.util.Properties()
+                props.load(prior.reader())
+                props.setProperty("guest.engine", "cocos2dx")
+                props.setProperty("guest.package", config.guestPackageName ?: config.packageName)
+                props.setProperty("guest.versionCode", (config.versionCode ?: 0).toString())
+                props.setProperty("guest.bestPark", modulesContainBestPark(selectedModules).toString())
+                val file = File(guestPayload.root, "generated/cocos-host.properties")
+                file.parentFile?.mkdirs()
+                file.writer(Charsets.UTF_8).use { props.store(it, null) }
+                replaceFile(module, file, path)
+                for (abi in listOf("arm64-v8a", "x86_64")) {
+                    if (module.getInputSource("lib/$abi/libpv7cocosprobe.so") == null)
+                        throw IOException("Missing Cocos runtime for $abi")
+                }
+            }
 
             config.launcherIcon
                 ?.takeIf { it.isFile }
@@ -173,6 +227,78 @@ class Pv7WrapperAssembler {
         } finally {
             runCatching { module.close() }
         }
+    }
+
+    private fun modulesContainBestPark(modules: List<Pv7ModuleManifest>) =
+        modules.any { it.id == Pv7GuestBackend.BEST_PARK_MODULE }
+
+    private fun validateCocosPayload(payload: Pv7CocosGuestPayload, config: Pv7WrapperConfig,
+                                        modules: List<Pv7ModuleManifest>) {
+        if (modules.none { it.id == Pv7GuestBackend.COCOS_MODULE })
+            throw IOException("Select Cocos2d-x Compatibility to build this APK")
+        if (modules.any { it.targets.engines.isNotEmpty() && "cocos2dx" !in it.targets.engines })
+            throw IOException("Unity or other engine module cannot be applied to Cocos")
+        if (config.versionCode == null || config.versionCode <= 0)
+            throw IOException("Original Cocos APK version code is required")
+        if (!modulesContainBestPark(modules)) return
+        if (config.guestPackageName != Pv7GuestBackend.BEST_PARK_PACKAGE ||
+            config.versionCode != 16 || config.versionName != Pv7GuestBackend.BEST_PARK_VERSION) {
+            throw IOException("The experimental Cocos backend requires Best Park 1.2.0 version 16 and its compatibility module")
+        }
+        val sha = java.security.MessageDigest.getInstance("SHA-256")
+        payload.nativeLibrary.inputStream().use { input ->
+            val buffer = ByteArray(65536)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                sha.update(buffer, 0, n)
+            }
+        }
+        val digest = sha.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+        // The native runtime includes binary-scoped compatibility workarounds.
+        if (digest != "44a34f22239d436bea705f6e246469b54c4f0587e1981c0dd1c2c8a469aa1cf4")
+            throw IOException("Unverified Best Park native library")
+    }
+
+    private fun copyCocosAssets(payload: Pv7CocosGuestPayload) {
+        val assetRoot = File(payload.root, "assets")
+        ZipFile(payload.originalApk).use { zip ->
+            val seen = mutableSetOf<String>()
+            zip.entries().asSequence().filterNot { it.isDirectory }
+                .filter { it.name.startsWith("assets/") }
+                .forEach { entry ->
+                    val relative = entry.name.removePrefix("assets/")
+                    if (relative.isBlank() || relative.substringBefore('/') in setOf("pv7","guest","bootstrap"))
+                        return@forEach
+                    if (!seen.add(relative)) throw IOException("Duplicate guest asset: $relative")
+                    val target = safeChild(assetRoot, relative)
+                    target.parentFile?.mkdirs()
+                    zip.getInputStream(entry).use { input -> target.outputStream().use(input::copyTo) }
+                }
+        }
+    }
+
+    private fun applyGuestRecoveryActivity(manifest: AndroidManifestBlock) {
+        val name = "app.projectv7.wrapper.GuestRestartActivity"
+        val activities = manifest.listApplicationElementsByTag("activity")
+        val main = activities.firstOrNull {
+            AndroidManifestBlock.getAndroidNameValue(it) == "app.projectv7.wrapper.MainActivity"
+        }
+        val orientation = main?.searchAttributeByName("screenOrientation")
+        val activity = activities.firstOrNull {
+            AndroidManifestBlock.getAndroidNameValue(it) == name
+        } ?: manifest.orCreateApplicationElement.newElement("activity")
+        // Match the host's manifest orientation before Android draws the recovery window.
+        // An unspecified host uses behind instead of forcing portrait.
+        activity.getOrCreateAndroidAttribute("screenOrientation", android.R.attr.screenOrientation).apply {
+            setValueType(com.reandroid.arsc.value.ValueType.DEC)
+            setData(orientation?.data ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND)
+        }
+        activity.getOrCreateAndroidAttribute("name", android.R.attr.name).setValueAsString(name)
+        activity.getOrCreateAndroidAttribute("exported", android.R.attr.exported).setValueAsBoolean(false)
+        activity.getOrCreateAndroidAttribute("process", android.R.attr.process).setValueAsString(":pv7_recovery")
+        activity.getOrCreateAndroidAttribute("noHistory", android.R.attr.noHistory).setValueAsBoolean(true)
+        activity.getOrCreateAndroidAttribute("excludeFromRecents", android.R.attr.excludeFromRecents).setValueAsBoolean(true)
     }
 
     private fun applyDocumentsProviders(
@@ -323,7 +449,7 @@ class Pv7WrapperAssembler {
                     if (relative == COMPAT_PROPERTIES_APK_PATH) {
                         compatLayers += source.readText(Charsets.UTF_8)
                     } else {
-                        replaceFile(apk, source, relative)
+                        overlayPayloadFile(apk, source, relative, scratchRoot, module.id)
                     }
                 }
                 return@forEach
@@ -342,7 +468,7 @@ class Pv7WrapperAssembler {
                     if (relative == COMPAT_PROPERTIES_APK_PATH) {
                         compatLayers += target.readText(Charsets.UTF_8)
                     } else {
-                        replaceFile(apk, target, relative)
+                        overlayPayloadFile(apk, target, relative, scratchRoot, module.id)
                     }
                 }
                 return@forEach
@@ -371,6 +497,29 @@ class Pv7WrapperAssembler {
             output.writeText(merged, Charsets.UTF_8)
             replaceFile(apk, output, COMPAT_PROPERTIES_APK_PATH)
         }
+    }
+
+    // Native libraries are distributed compressed in catalog modules to keep
+    // remote refreshes small. The decompressed entry remains byte-identical to
+    // the verified .so before it replaces the template's native library.
+    private fun overlayPayloadFile(
+        apk: ApkModule,
+        source: File,
+        relative: String,
+        scratchRoot: File,
+        moduleId: String
+    ) {
+        if (!relative.endsWith(".so.pv7z")) {
+            replaceFile(apk, source, relative)
+            return
+        }
+        val apkPath = relative.removeSuffix(".pv7z")
+        val target = safeChild(File(scratchRoot, "inflated-native/" + moduleId), apkPath)
+        target.parentFile?.mkdirs()
+        GZIPInputStream(source.inputStream()).use { input ->
+            target.outputStream().use(input::copyTo)
+        }
+        replaceFile(apk, target, apkPath)
     }
 
     private fun overlayAssetNode(

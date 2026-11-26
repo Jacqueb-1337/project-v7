@@ -1,4 +1,4 @@
-﻿package app.morphe.manager.domain.pv7
+package app.morphe.manager.domain.pv7
 
 import android.content.res.AssetManager
 import com.reandroid.apk.ApkModule
@@ -7,6 +7,7 @@ import kotlinx.serialization.json.put
 import sun.misc.Unsafe
 import java.io.File
 import java.nio.file.Files
+import java.util.zip.ZipFile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -37,6 +38,10 @@ class Pv7WrapperAssemblerTest {
             }
             val libMono = File(guestRoot, "assets/guest/libmono.so").apply {
                 writeBytes(byteArrayOf(1))
+            }
+
+            val originalModAsset = File(guestRoot, "assets/CNRModManager.dll").apply {
+                writeBytes(byteArrayOf(1, 2, 3, 4))
             }
 
             val module = Pv7ModuleManifest(
@@ -76,13 +81,29 @@ class Pv7WrapperAssemblerTest {
             )
 
             assertTrue(output.isFile)
+            ZipFile(output).use { zip ->
+                val entry = assertNotNull(zip.getEntry("assets/CNRModManager.dll"))
+                assertTrue(zip.getInputStream(entry).use { it.readBytes() }
+                    .contentEquals(originalModAsset.readBytes()))
+            }
             val apk = ApkModule.loadApkFile(output)
             try {
                 val manifest = apk.androidManifestBlock
                 assertTrue("android.permission.WRITE_EXTERNAL_STORAGE" in manifest.usesPermissions)
                 assertTrue("android.permission.READ_EXTERNAL_STORAGE" in manifest.usesPermissions)
                 assertTrue("android.permission.RECORD_AUDIO" in manifest.usesPermissions)
+                assertTrue("android.permission.POST_NOTIFICATIONS" in manifest.usesPermissions)
 
+                val recovery = assertNotNull(manifest.listApplicationElementsByTag("activity")
+                    .singleOrNull { com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+                        .getAndroidNameValue(it) == "app.projectv7.wrapper.GuestRestartActivity" })
+                assertEquals(":pv7_recovery", recovery.searchAttributeByName("process")?.valueAsString)
+                val mainActivity = assertNotNull(manifest.listApplicationElementsByTag("activity")
+                    .singleOrNull { com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+                        .getAndroidNameValue(it) == "app.projectv7.wrapper.MainActivity" })
+                assertEquals(mainActivity.searchAttributeByName("screenOrientation")?.data
+                    ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND,
+                    recovery.searchAttributeByName("screenOrientation")?.data)
                 val provider = manifest.listApplicationElementsByTag("provider")
                     .singleOrNull {
                         com.reandroid.arsc.chunk.xml.AndroidManifestBlock.getAndroidNameValue(it) ==

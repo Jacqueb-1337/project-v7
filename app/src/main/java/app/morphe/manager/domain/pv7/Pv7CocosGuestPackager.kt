@@ -8,12 +8,12 @@ import java.util.zip.ZipFile
 
 /** Stages ARM32 Cocos2d-x guests separately from the Unity/Mono wrapper. */
 data class Pv7CocosGuestPayload(
-    val root: File,
+    override val root: File,
     val nativeLibrary: File,
     val originalApk: File,
     val abi: String,
     val bundledLibraries: List<File>
-)
+) : Pv7StagedGuest
 
 /**
  * Prepares native Cocos game libraries and the original asset archive.

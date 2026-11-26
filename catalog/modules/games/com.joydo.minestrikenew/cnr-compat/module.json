@@ -1,9 +1,9 @@
 {
   "id": "cnr-compat",
   "name": "CNR64 Compatibility",
-  "version": "1.0.5",
+  "version": "1.0.12",
   "kind": "game",
-  "description": "CNR-specific behavior and validated Unity 4.6.1f1 native patch. Requires the general legacy Unity 4.6 policy; CNR absolute addresses are not used by other games.",
+  "description": "CNR 3.0.2 compatibility with cooperative frame sleep, managed mod bootstrap, supervisor recovery, a 64 MiB default code cache, and CNR-specific asynchronous WWW initialization.",
   "targets": {
     "packageIds": [
       "com.joydo.minestrikenew"
@@ -23,6 +23,7 @@
     ]
   },
   "dependencies": [
+    "core-compat",
     "unity-4.6-compat"
   ],
   "operations": [
@@ -44,6 +45,13 @@
     "assets/bootstrap/CNRModManager.dll",
     "assets/bootstrap/CNRModManager.dll.sha256",
     "assets/bootstrap/repo-sources.txt",
-    "assets/bootstrap/repo-sources.txt.sha256"
+    "assets/bootstrap/repo-sources.txt.sha256",
+    "assets/bootstrap/CNRMod.dll",
+    "assets/bootstrap/CNRMod.dll.sha256",
+    "assets/bootstrap/CNRSettingsMod.dll",
+    "assets/bootstrap/CNRSettingsMod.dll.sha256",
+    "assets/bootstrap/GraphicsSettings.dll",
+    "assets/bootstrap/GraphicsSettings.dll.sha256",
+    "lib/arm64-v8a/libpv7host.so.pv7z"
   ]
 }

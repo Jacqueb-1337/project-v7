@@ -22,5 +22,6 @@
     "cnr-compat"
   ],
   "blacklist": [],
-  "notes": "CNR 3.0.2 ARMv7 libunity.so reports Unity 4.6.1f1. CNR-specific native patch and mods are game-binary scoped; this test does not establish compatibility for other Unity 4.6 games."
+  "notes": "CNR 3.0.2 ARMv7 libunity.so reports Unity 4.6.1f1. CNR-specific native patch and mods are game-binary scoped; this test does not establish compatibility for other Unity 4.6 games. Recommended CNR 3.0.2 setup: PV7 core plus generic Unity 4.6 policy and CNR-specific storage/bootstrap compatibility. CNR module seeds current verified CNRMod, Mod Manager, Settings and Graphics Settings DLLs on first install without overwriting existing custom mods. Shipment MW passed a limited on-device spawn/movement/jump smoke test; CPU and thermal optimization is ongoing.",
+  "profileVersion": 2
 }

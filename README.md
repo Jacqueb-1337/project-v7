@@ -2,6 +2,13 @@
 
 <p align="center"><img src="docs/project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo" width="180"></p>
 
+> [!WARNING]
+> **Project V7 is experimental. Cops N Robbers 3.0.2 is currently the only officially supported game.**
+>
+> Project V7 is built around **32-bit Unity 4.x-era games**, with **Unity 4.6 Mono** as its current tested baseline. Other Unity games from that era may be compatible in theory, but they are **untested** and should not be expected to work out of the box. Substantial compatibility and runtime work remains, and other engines require their own backends.
+>
+> A catalog entry or experimental profile does **not** mean a game is confirmed working.
+
 Project V7 is an Android APK patcher and compatibility project for getting older 32-bit Android apps and games running on newer 64-bit-only Android devices.
 
 It started with one very specific problem: Cops N Robbers 3.0.2 is a 32-bit ARMv7 Unity game, and modern 64-bit-only phones cannot run it normally. Project V7 grew out of the work to make that game usable again without turning the whole phone into an old Android environment.
@@ -21,9 +28,9 @@ Project V7 is not a full Android emulator or virtual machine. For apps that need
 
 ## Current status
 
-Project V7 is still early, but the full patching path is working.
+**Project V7 is still experimental, and Cops N Robbers 3.0.2 is its only officially supported game.** Its tested compatibility profile is included in the Project V7 catalog. This does not guarantee identical results on every device.
 
-Cops N Robbers 3.0.2 is the first tested app. Its compatibility profile is included in the Project V7 catalog.
+The current runtime is designed for **legacy 32-bit Unity 4.x-era games**, particularly Unity 4.6 Mono, so other games built with similar technology are reasonable candidates for future compatibility. **That is a technical possibility, not a compatibility guarantee.** We have not verified other Unity titles, and substantial work remains on native compatibility, game-specific behavior, and additional engine backends before broader support can be claimed.
 
 The supported-app list is loaded from this repository. It is not hard-coded into the Patcher APK. That means support for another app can be added through the catalog without requiring everyone to install a new version of the patcher.
 
@@ -100,7 +107,11 @@ ARMv7 / armeabi-v7a apps are a primary compatibility target, but support is app-
 
 ### Does Project V7 support Cops N Robbers 3.0.2?
 
-Yes. Cops N Robbers 3.0.2 is the first tested app and the main compatibility test case for Project V7.
+Yes. Cops N Robbers 3.0.2 is currently the **only officially supported game** and the main compatibility test case for Project V7. Other games are still a work in progress.
+
+### Will other older Unity games work?
+
+Project V7 targets the **Unity 4.x era**, with a tested **Unity 4.6 Mono** baseline. Other 32-bit Unity games from that period are plausible candidates, especially if their engine and APK layout are similar. They have **not** been validated, and may need additional native runtime work, API bridges, or game-specific patches. Do not assume a game works just because it was made with Unity 4.x.
 
 ### Why does "Morphe Patches" say it needs a newer patch engine?
 
@@ -122,7 +133,8 @@ See [guest storage and OBB mapping](docs/guest-storage.md).
 ## Native compatibility backends
 
 PV7's catalog can accept game entries for many Android APKs, but its current
-runtime only builds legacy ARMv7 **Unity 4.6 Mono** wrappers. A Cocos2d-x game
+runtime only builds experimental legacy ARMv7 **Unity 4.6 Mono** wrappers.
+Only the Cops N Robbers 3.0.2 game configuration is officially supported. Other Unity 4.x-era games may eventually work with the existing approach, but remain untested and may need substantial game-specific fixes. A Cocos2d-x game
 such as Regular Show: Best Park in the Universe needs a separate native
 compatibility backend, not the existing CNR Unity wrapper.
 See [engine compatibility and diagnostics](docs/compatibility-backends.md).

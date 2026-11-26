@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-site-verification" content="k_4RTeMYEhSdcT1DGJZPtw1nss0TVPTOzOqdcE5Jc0E">
   <title>Project V7 | Run 32-bit Android Apps on 64-bit-only Devices</title>
-  <meta name="description" content="Project V7 is an Android APK patcher and compatibility project for running older 32-bit ARMv7 and armeabi-v7a apps and Unity games on modern 64-bit-only Android devices.">
+  <meta name="description" content="Project V7 is an experimental Unity 4.x-era Android 32-bit compatibility patcher. Only Cops N Robbers 3.0.2 is officially supported; other games are untested.">
   <meta name="keywords" content="Project V7, Android 32-bit compatibility, 32-bit Android apps, 64-bit-only Android, ARMv7, armeabi-v7a, APK patcher, Unity Android games, Cops N Robbers">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://jacqueb-1337.github.io/project-v7/">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Project V7 | Android 32-bit Compatibility Patcher">
-  <meta property="og:description" content="Run supported older 32-bit ARMv7 Android apps and games on newer 64-bit-only Android devices.">
+  <meta property="og:description" content="Experimental Android 32-bit compatibility patcher. Currently only Cops N Robbers 3.0.2 is officially supported; more games are in development.">
   <meta property="og:url" content="https://jacqueb-1337.github.io/project-v7/">
   <meta property="og:image" content="https://jacqueb-1337.github.io/project-v7/project-v7-icon.png">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Project V7 | Android 32-bit Compatibility Patcher">
-  <meta name="twitter:description" content="Compatibility tooling for older 32-bit Android apps and Unity games on 64-bit-only devices.">
+  <meta name="twitter:description" content="Experimental Android compatibility tooling. Only Cops N Robbers 3.0.2 is officially supported while we add other games.">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -40,6 +40,9 @@
     h2 { margin-top: 42px; }
     p, li { line-height: 1.7; color: #c9d1d9; }
     .lead { font-size: 1.18rem; max-width: 760px; margin: 0 auto; }
+    .status-notice { margin: 28px auto 0; padding: 20px 22px; max-width: 720px; text-align: left; background: #241c12; border: 1px solid #9a6700; border-left: 5px solid #d29922; border-radius: 10px; }
+    .status-notice h2 { margin: 0 0 8px; font-size: 1.2rem; color: #f2cc81; }
+    .status-notice p { margin: 8px 0 0; color: #f0e2cb; line-height: 1.6; }
     .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 26px; }
     .actions a { display: inline-block; padding: 11px 16px; border: 1px solid #30363d; border-radius: 8px; text-decoration: none; color: #f0f6fc; background: #21262d; }
     .actions a.primary { background: #238636; border-color: #2ea043; }
@@ -54,6 +57,11 @@
     <img class="logo" src="project-v7-icon.png" alt="Project V7 Android 32-bit compatibility patcher logo">
     <h1>Project V7</h1>
     <p class="lead">An Android APK patcher and compatibility project for running supported older 32-bit ARMv7 and armeabi-v7a apps and games on newer 64-bit-only Android devices.</p>
+    <aside class="status-notice" aria-labelledby="compatibility-status">
+      <h2 id="compatibility-status">Experimental: Cops N Robbers is the only officially supported game</h2>
+      <p><strong>Project V7 is still experimental. Cops N Robbers 3.0.2 is the only officially supported game.</strong></p>
+      <p>Project V7 is designed around <strong>32-bit Unity 4.x-era games</strong>, with Unity 4.6 Mono as the current tested baseline. Other games from that era may work in theory, but they are <strong>untested</strong>. Significant runtime and compatibility work remains, and other engines need additional backends.</p>
+    </aside>
     <div class="actions">
       <a class="primary" href="https://github.com/Jacqueb-1337/project-v7/releases/latest">Download Project V7</a>
       <a href="https://github.com/Jacqueb-1337/project-v7">View source on GitHub</a>
@@ -63,7 +71,7 @@
   <section>
     <h2>Android 32-bit compatibility on 64-bit-only phones</h2>
     <p>Many older Android apps and games ship only 32-bit native code. Newer Android devices may no longer provide native 32-bit app support. Project V7 provides an app-specific compatibility path for supported software instead of requiring an old Android device or a full virtual machine.</p>
-    <p>Project V7 targets older ARMv7 and <code>armeabi-v7a</code> Android software, including legacy Unity games. Support is profile-based, so compatibility fixes can be added per app without hard-coding every supported title into the patcher.</p>
+    <p>Project V7 primarily targets older ARMv7 and <code>armeabi-v7a</code> Unity 4.x-era Android games. Unity 4.6 Mono is its tested starting point; games with different Unity versions, native libraries, APK layouts, or engine behavior may require further compatibility work. Support is profile-based, allowing fixes to be developed per app without hard-coding every game into the patcher.</p>
   </section>
 
   <section>
@@ -79,9 +87,11 @@
   <section>
     <h2>Frequently asked questions</h2>
     <h3>Can Project V7 run 32-bit Android apps on 64-bit-only phones?</h3>
-    <p>For supported apps, yes. Project V7 provides app-specific compatibility rather than claiming universal support for every 32-bit APK.</p>
+    <p>Project V7 currently officially supports only Cops N Robbers 3.0.2. Compatibility with other games is under active development and should be considered experimental, even when an APK can be selected or patched.</p>
+    <h3>Will other Unity 4.x games work?</h3>
+    <p>Possibly. Project V7 was built around a Unity 4.6 Mono game, and other 32-bit Unity games from the same era are promising candidates. They have not been tested or officially supported, and major compatibility work remains. A successful patch does not guarantee that a game will launch or run correctly.</p>
     <h3>Does Project V7 support ARMv7 and armeabi-v7a?</h3>
-    <p>Yes. ARMv7 and armeabi-v7a Android apps are primary compatibility targets.</p>
+    <p>ARMv7 and armeabi-v7a apps are primary compatibility targets, but compatibility is not universal or automatic.</p>
     <h3>Is Project V7 a full Android emulator?</h3>
     <p>No. It uses a 64-bit host and compatibility modules for supported apps instead of emulating an entire Android environment.</p>
   </section>

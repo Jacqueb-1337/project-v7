@@ -1,3 +1,38 @@
+# [1.38.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.3...v1.38.0) (2026-11-26)
+
+
+### Features
+
+* **pv7:** ship shared guest supervisor by default ([9296fd8](https://github.com/Jacqueb-1337/project-v7/commit/9296fd80f569a3451a1961405381019340aeaa84))
+
+## [1.37.3](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.2...v1.37.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **pv7:** preserve guest assets and restore mod bootstrap ([587a7fa](https://github.com/Jacqueb-1337/project-v7/commit/587a7fa11828a806dbd7fb4f63ffbad7aa1b12a7))
+
+## [1.37.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.1...v1.37.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **cnr:** reduce CPU during Unity frame waits ([05b7887](https://github.com/Jacqueb-1337/project-v7/commit/05b78877273b35cecbe0c7faebe918f857ef1050))
+
+## [1.37.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.0...v1.37.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **pv7:** avoid Android auto-inflating CNR native asset ([74a1992](https://github.com/Jacqueb-1337/project-v7/commit/74a19927b23383039513621c0a5274f2844d527b))
+
+# [1.37.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.36.0...v1.37.0) (2026-11-23)
+
+
+### Features
+
+* **pv7:** publish verified CNR module recommendations on main ([94de9e1](https://github.com/Jacqueb-1337/project-v7/commit/94de9e16576192bbea7042c8f46a9d95cf2ea29c))
+
 # [1.36.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.35.0...v1.36.0) (2026-10-30)
 
 

@@ -3,9 +3,10 @@
   "name": "Core Compatibility",
   "version": "1.0.0",
   "kind": "general",
-  "description": "Generic ARMv7-on-64-bit compatibility host (experimental outside tested game profiles). Legacy Unity APKs are currently the only supported wrapper format.",
+  "description": "Generic ARM32-on-64-bit host and shared supervisor. Engine-specific compatibility modules supply the guest runtime.",
   "targets": {
     "abis": [
+      "armeabi",
       "armeabi-v7a"
     ]
   },
