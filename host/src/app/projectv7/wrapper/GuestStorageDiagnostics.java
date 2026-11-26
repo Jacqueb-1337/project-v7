@@ -10,7 +10,7 @@ public final class GuestStorageDiagnostics {
     private static final int MAX_RECORDS=16;
     private static final Map<String, Failure> failures=new LinkedHashMap<>();
     private static String runtimeFault;
-    private static final class Failure {
+    static final class Failure {
         final String name,reason; final long time;
         Failure(String name,String reason,long time){this.name=name;this.reason=reason;this.time=time;}
     }
@@ -37,11 +37,15 @@ public final class GuestStorageDiagnostics {
         if(runtimeFault!=null)return "Guest runtime compatibility error: "+runtimeFault;
         return storageMessage(now);
     }
-    public static synchronized String storageMessage(long now){
+    static synchronized Failure latestFailure(long now){
         if(runtimeFault!=null)return null;
         Failure last=null;
         for(Failure f:failures.values())
             if(now>=f.time && now-f.time<=MAX_AGE_MS)last=f;
+        return last;
+    }
+    public static synchronized String storageMessage(long now){
+        Failure last=latestFailure(now);
         if(last==null)return null;
         String detail="missing".equals(last.reason)?"could not be found":
             "corrupt".equals(last.reason)?"appears corrupt":"could not be read";

@@ -178,6 +178,13 @@ public final class MainActivity extends Activity {
     private boolean showingRecovery;
     private final GuestBlackFrameProbe blackFrameProbe=new GuestBlackFrameProbe();
     private boolean storageBlackWarning;
+    private volatile boolean storageRecoveryActive;
+    private GuestStorageRecoveryCard storageCard;
+    private static final int REQUEST_OBB_IMPORT=0x7059;
+    private static final int REQUEST_GAME_STORAGE=0x705a;
+    private String recoveryReason;
+    private volatile Thread obbImportWorker;
+    private boolean choosingObb;
     private boolean blackSamplePending;
     private long nextBlackSample;
     private int storageProbeGeneration;
@@ -309,6 +316,11 @@ public final class MainActivity extends Activity {
         recoveryBanner.addView(recover);
         rootLayout.addView(recoveryBanner,new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL));
         recoveryBanner.setVisibility(View.GONE);
+        storageCard=new GuestStorageRecoveryCard(this,this::pickRecoveryObb,this::openRecoveryStorage,
+            () -> restartGuestProcess("storage recovery"));
+        FrameLayout.LayoutParams cardParams=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        cardParams.setMargins(dp(16),0,dp(16),dp(12));
+        rootLayout.addView(storageCard,cardParams);
         setContentView(rootLayout);
     }
 
@@ -606,6 +618,102 @@ public final class MainActivity extends Activity {
         dialog.getWindow().setLayout(-1,-1);
     }
 
+    private void showStorageRecovery(GuestStorageDiagnostics.Failure failure){
+        if(failure==null||!GuestObbImporter.validName(failure.name))return;
+        if(!storageRecoveryActive){
+            storageRecoveryActive=true;
+            recoveryReason=failure.reason;
+            blackFrameProbe.reset();
+            startupStageCaption.setVisibility(View.GONE);
+            recoveryBanner.setVisibility(View.GONE);
+            guestOverlay.setVisibility(View.GONE);
+            if(performanceOverlay!=null)performanceOverlay.stop();
+            setGuestBackgrounded(true);
+            setEngineRunning(false);
+        }
+        storageCard.showFailure(failure);
+    }
+
+    private void pickRecoveryObb(){
+        if(!storageRecoveryActive||choosingObb||obbImportWorker!=null)return;
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("*/*");
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        choosingObb=true;
+        try{startActivityForResult(picker,REQUEST_OBB_IMPORT);}
+        catch(RuntimeException failure){choosingObb=false;storageCard.result(false,"No file picker available. Use PV7 Game Storage instead.");}
+    }
+
+    private void openRecoveryStorage(){
+        if(!storageRecoveryActive||obbImportWorker!=null)return;
+        File directory=new File(getFilesDir(),"GuestSharedStorage/obb");
+        if(!directory.isDirectory()&&!directory.mkdirs()){
+            storageCard.result(false,"Could not prepare game storage.");return;
+        }
+        android.net.Uri uri=android.provider.DocumentsContract.buildDocumentUri(getPackageName()+".gamefiles","obb");
+        Intent browse=new Intent(Intent.ACTION_VIEW);
+        browse.setDataAndType(uri,android.provider.DocumentsContract.Document.MIME_TYPE_DIR);
+        browse.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        try{startActivity(browse);}
+        catch(RuntimeException unsupported){
+            Intent tree=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            if(Build.VERSION.SDK_INT>=26)tree.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,uri);
+            try{startActivityForResult(tree,REQUEST_GAME_STORAGE);}
+            catch(RuntimeException unavailable){
+                storageCard.result(false,"In your Files app, open the PV7 Game Storage location, then obb.");
+            }
+        }
+    }
+
+    @Override protected void onActivityResult(int request,int result,Intent data){
+        super.onActivityResult(request,result,data);
+        if(request!=REQUEST_OBB_IMPORT)return;
+        choosingObb=false;
+        if(result!=RESULT_OK||data==null||data.getData()==null||!storageRecoveryActive||obbImportWorker!=null)return;
+        final android.net.Uri uri=data.getData();
+        final String expected=storageCard.expected();
+        if(!GuestObbImporter.validName(expected))return;
+        storageCard.importing(0,-1);
+        obbImportWorker=new Thread(()->{
+            boolean success=false;String message;
+            try{
+                long size=-1;
+                try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.SIZE},null,null,null)){
+                    if(c!=null&&c.moveToFirst()&&!c.isNull(0))size=c.getLong(0);
+                }catch(RuntimeException unavailable){}
+                final long total=size;
+                File directory=new File(getFilesDir(),"GuestSharedStorage/obb");
+                File privateRoot=getFilesDir().getCanonicalFile();
+                if(!directory.getCanonicalPath().startsWith(privateRoot.getPath()+File.separator))
+                    throw new java.io.IOException("Unsafe storage directory.");
+                try(InputStream input=getContentResolver().openInputStream(uri)){
+                    GuestObbImporter.copy(input,directory,expected,total,cocosBackend,bytes ->
+                        runOnUiThread(()->{if(!isDestroyed()&&obbImportWorker!=null)storageCard.importing(bytes,total);}));
+                }
+                success=true;message="Imported as "+expected+". Restart the guest to load it.";
+            }catch(Exception failure){
+                Log.w("PV7HOST","OBB import failed",failure);
+                message=failure.getMessage()==null?"Could not import selected file.":failure.getMessage();
+            }
+            final boolean ok=success;final String resultText=message;
+            runOnUiThread(()->{
+                obbImportWorker=null;
+                if(!isDestroyed()&&!isFinishing())storageCard.result(ok,resultText);
+            });
+        },"PV7-OBB-import");
+        obbImportWorker.start();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state){
+        super.onSaveInstanceState(state);
+        if(storageRecoveryActive&&storageCard!=null){
+            state.putString("pv7.recovery.obb",storageCard.expected());
+            state.putString("pv7.recovery.reason",recoveryReason);
+            state.putBoolean("pv7.recovery.picking",choosingObb);
+        }
+    }
+
     private void clearStorageBlackWarning() {
         blackFrameProbe.reset();
         if(storageBlackWarning) {
@@ -640,13 +748,7 @@ public final class MainActivity extends Activity {
                     if(!black){clearStorageBlackWarning();return;}
                     if(!blackFrameProbe.observe(true,true,time))return;
                     storageBlackWarning=true;
-                    guestOverlay.setVisibility(View.VISIBLE);
-                    guestStatus.setText("Guest is running but the screen is black\n\n"+evidence);
-                    guestStatus.setVisibility(View.VISIBLE);
-                    guestSpinner.setVisibility(View.GONE);
-                    guestAction.setText("Restart guest");
-                    guestAction.setVisibility(View.VISIBLE);
-                    guestAction.setOnClickListener(v -> restartGuestProcess("missing expansion recovery"));
+                    showStorageRecovery(GuestStorageDiagnostics.latestFailure(time));
                 } finally {
                     sample.recycle();
                     if(generation==storageProbeGeneration)blackSamplePending=false;
@@ -658,7 +760,9 @@ public final class MainActivity extends Activity {
     }
 
     private void showLostGuest() {
-        if (restartingGuest || showingRecovery) return;
+        if (restartingGuest || showingRecovery || storageRecoveryActive) return;
+        GuestStorageDiagnostics.Failure storageFailure=GuestStorageDiagnostics.latestFailure(SystemClock.elapsedRealtime());
+        if(storageFailure!=null){showStorageRecovery(storageFailure);return;}
         showingRecovery = true;
         storageBlackWarning=false;
         blackFrameProbe.reset();
@@ -679,6 +783,7 @@ public final class MainActivity extends Activity {
     }
 
     private void pollGuest() {
+        if(storageRecoveryActive)return;
         if (restartRequestAvailable && launchReady) {
             try {
                 if (!cocosBackend && nativeConsumeRestartRequest()) {
@@ -742,8 +847,9 @@ public final class MainActivity extends Activity {
     }
 
     private void restartGuestProcess(String reason) {
-        if (restartingGuest || isFinishing()) return;
+        if (restartingGuest || isFinishing() || obbImportWorker!=null || choosingObb) return;
         restartingGuest = true;
+        if(storageCard!=null)storageCard.setVisibility(View.GONE);
         startupStageCaption.setVisibility(View.GONE);
         if(recoveryBanner!=null)recoveryBanner.setVisibility(View.GONE);
         if(performanceOverlay!=null)performanceOverlay.stop();
@@ -773,7 +879,11 @@ public final class MainActivity extends Activity {
             restartingGuest = false;
             showingRecovery = false;
             Log.e("PV7HOST", "Could not launch guest recovery activity", failure);
-            showLostGuest();
+            if(storageRecoveryActive){
+                guestOverlay.setVisibility(View.GONE);
+                storageCard.setVisibility(View.VISIBLE);
+                storageCard.result(false,"Could not restart guest. Try again.");
+            } else showLostGuest();
             if (activityResumed) supervisor.postDelayed(guestWatchdog, 500);
         }
     }
@@ -929,6 +1039,14 @@ public final class MainActivity extends Activity {
         });
 
         buildGuestOverlay();
+        if(savedInstanceState!=null){
+            String expected=savedInstanceState.getString("pv7.recovery.obb");
+            if(GuestObbImporter.validName(expected)){
+                choosingObb=savedInstanceState.getBoolean("pv7.recovery.picking");
+                showStorageRecovery(new GuestStorageDiagnostics.Failure(expected,
+                    savedInstanceState.getString("pv7.recovery.reason","missing"),SystemClock.elapsedRealtime()));
+            }
+        }
         renderSurface.requestFocus();
         supervisor.postDelayed(releaseLaunch, SPLASH_OPTIONS_MS);
 
@@ -941,7 +1059,7 @@ public final class MainActivity extends Activity {
         Log.i("PV7HOST", "PV7LIFE onResume running=" + baselineRunning);
         activityResumed = true;
         updateSupervisorNotification(false);
-        setGuestBackgrounded(surfaceNeedsRebind);
+        setGuestBackgrounded(storageRecoveryActive||surfaceNeedsRebind);
         lastGuestProgress = SystemClock.elapsedRealtime();
         supervisor.removeCallbacks(guestWatchdog);
         supervisor.post(guestWatchdog);
@@ -971,6 +1089,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         activityResumed = false;
+        Thread importWorker=obbImportWorker;
+        if(importWorker!=null)importWorker.interrupt();
         supervisor.removeCallbacksAndMessages(null);
         if(performanceOverlay!=null)performanceOverlay.close();
         clearSupervisorNotification();
@@ -1248,7 +1368,7 @@ public final class MainActivity extends Activity {
 
     private void startBaselineOnce() {
         synchronized (baselineLock) {
-            if (!launchReady || restartingGuest || baselineStarted || guestPreparationRunning || baselineRunning || !activityResumed
+            if (storageRecoveryActive || !launchReady || restartingGuest || baselineStarted || guestPreparationRunning || baselineRunning || !activityResumed
                     || (baselineThread != null && baselineThread.isAlive())) return;
             Surface surface = renderSurface.getHolder().getSurface();
             if (surface == null || !surface.isValid()) return;
