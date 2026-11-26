@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.38.0...v1.39.0) (2026-11-26)
+
+
+### Features
+
+* **pv7:** enable experimental Cocos2d-x compatibility ([16828ce](https://github.com/Jacqueb-1337/project-v7/commit/16828ceae2d5d86ef666323825ddadeec9ee35cd))
+
 # [1.38.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.37.3...v1.38.0) (2026-11-26)
 
 
