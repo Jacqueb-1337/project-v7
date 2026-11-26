@@ -37,8 +37,9 @@ class Pv7EngineDetectorTest {
             Pv7EngineDetector.detectAbis(apk), engine)
         assertTrue(Pv7GuestBackend.canBuild(target))
         assertFalse(Pv7GuestBackend.canProceed(target,setOf("core-compat")))
-        assertTrue(Pv7GuestBackend.canProceed(target,setOf("core-compat","cocos2dx-compat")))
-        assertFalse(Pv7GuestBackend.isBestPark(target))
+        assertFalse(Pv7GuestBackend.canProceed(target,setOf("core-compat","cocos2dx-compat")))
+        assertTrue(Pv7GuestBackend.canProceed(target,setOf("core-compat","cocos2dx-compat","best-park-compat")))
+        assertTrue(Pv7GuestBackend.isBestPark(target))
         assertTrue(Pv7GuestBackend.explanation(target).contains("Cocos2d-x"))
     }
 

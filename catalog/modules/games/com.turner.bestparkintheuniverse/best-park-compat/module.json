@@ -1,16 +1,17 @@
 {
   "id": "best-park-compat",
   "name": "Best Park Cocos compatibility",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "game",
   "category": "Engine compatibility",
-  "description": "Binary-verified Best Park 1.2.0 game-specific compatibility fixes layered on the generic Cocos runtime.",
+  "description": "Best Park version 16 (1.2.0 and 1.2.1); exact native hash verified during assembly.",
   "targets": {
     "packageIds": [
       "com.turner.bestparkintheuniverse"
     ],
     "versions": [
-      "1.2.0"
+      "1.2.0",
+      "1.2.1"
     ],
     "abis": [
       "armeabi",
@@ -18,9 +19,6 @@
     ],
     "engines": [
       "cocos2dx"
-    ],
-    "engineVersions": [
-      "cocos2d-2.1rc0-x-2.1.2"
     ]
   },
   "dependencies": [

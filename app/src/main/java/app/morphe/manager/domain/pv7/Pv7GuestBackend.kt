@@ -2,7 +2,7 @@ package app.morphe.manager.domain.pv7
 
 object Pv7GuestBackend {
     const val BEST_PARK_PACKAGE = "com.turner.bestparkintheuniverse"
-    const val BEST_PARK_VERSION = "1.2.0"
+    val BEST_PARK_VERSIONS = setOf("1.2.0", "1.2.1")
     const val BEST_PARK_MODULE = "best-park-compat"
     const val COCOS_MODULE = "cocos2dx-compat"
     const val BEST_PARK_ENGINE = "cocos2d-2.1rc0-x-2.1.2"
@@ -13,8 +13,8 @@ object Pv7GuestBackend {
             target.abis.any { it == "armeabi" || it == "armeabi-v7a" }
 
     fun isBestPark(target: Pv7AppTarget): Boolean =
-        target.packageId == BEST_PARK_PACKAGE && target.versionName == BEST_PARK_VERSION &&
-            target.engine?.id == "cocos2dx" && target.engine.version == BEST_PARK_ENGINE &&
+        target.packageId == BEST_PARK_PACKAGE && target.versionName in BEST_PARK_VERSIONS &&
+            target.engine?.id == "cocos2dx" &&
             target.abis.any { it == "armeabi" || it == "armeabi-v7a" }
 
     fun isCocos(target: Pv7AppTarget): Boolean =
@@ -23,10 +23,12 @@ object Pv7GuestBackend {
     fun canBuild(target: Pv7AppTarget): Boolean = isUnity(target) || isCocos(target)
 
     fun canProceed(target: Pv7AppTarget, selected: Set<String>): Boolean =
-        canBuild(target) && (!isCocos(target) || COCOS_MODULE in selected)
+        canBuild(target) && (!isCocos(target) || COCOS_MODULE in selected) &&
+            (!isBestPark(target) || BEST_PARK_MODULE in selected)
 
     fun selectionExplanation(target: Pv7AppTarget): String =
-        if (isCocos(target)) "Select Cocos2d-x Compatibility to continue. Unofficial games are experimental."
+        if (isBestPark(target)) "Select Best Park Cocos compatibility and its Cocos2d-x dependency to continue."
+        else if (isCocos(target)) "Select Cocos2d-x Compatibility to continue. Unofficial games are experimental."
         else explanation(target)
 
     fun explanation(target: Pv7AppTarget): String = when (target.engine?.id) {

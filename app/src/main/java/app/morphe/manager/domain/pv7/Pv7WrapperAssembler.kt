@@ -231,10 +231,15 @@ class Pv7WrapperAssembler {
             throw IOException("Unity or other engine module cannot be applied to Cocos")
         if (config.versionCode == null || config.versionCode <= 0)
             throw IOException("Original Cocos APK version code is required")
-        if (!modulesContainBestPark(modules)) return
+        if (!modulesContainBestPark(modules)) {
+            if (config.guestPackageName == Pv7GuestBackend.BEST_PARK_PACKAGE &&
+                config.versionCode == 16 && config.versionName in Pv7GuestBackend.BEST_PARK_VERSIONS)
+                throw IOException("Select Best Park Cocos compatibility: this game requires its game-specific JNI bridge")
+            return
+        }
         if (config.guestPackageName != Pv7GuestBackend.BEST_PARK_PACKAGE ||
-            config.versionCode != 16 || config.versionName != Pv7GuestBackend.BEST_PARK_VERSION) {
-            throw IOException("The experimental Cocos backend requires Best Park 1.2.0 version 16 and its compatibility module")
+            config.versionCode != 16 || config.versionName !in Pv7GuestBackend.BEST_PARK_VERSIONS) {
+            throw IOException("Best Park compatibility requires a verified version 16 APK (1.2.0 or 1.2.1)")
         }
         val sha = java.security.MessageDigest.getInstance("SHA-256")
         payload.nativeLibrary.inputStream().use { input ->
