@@ -2624,8 +2624,8 @@ class HomeViewModel(
 
     fun confirmPv7Selection() {
         val state = pv7PendingRun ?: return
-        if (!Pv7GuestBackend.canBuild(state.target)) {
-            app.toast(Pv7GuestBackend.explanation(state.target))
+        if (!Pv7GuestBackend.canProceed(state.target, state.resolution.selectedModuleIds)) {
+            app.toast(Pv7GuestBackend.selectionExplanation(state.target))
             return
         }
         val missing = state.resolution.visibleModules

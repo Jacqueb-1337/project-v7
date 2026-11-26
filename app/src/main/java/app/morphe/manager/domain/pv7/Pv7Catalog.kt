@@ -120,6 +120,10 @@ object Pv7CatalogResolver {
         profiles: List<Pv7CompatibilityProfile>,
         userSelectedModuleIds: Set<String>? = null
     ): Pv7ResolutionPlan {
+        fun engineMismatch(module: Pv7ModuleManifest): Boolean {
+            val engine = target.engine?.id ?: return false
+            return module.targets.engines.isNotEmpty() && engine !in module.targets.engines
+        }
         val byId = modules.associateBy { it.id }
         val profile = profiles
             .filter { it.tested && it.matches(target) }
@@ -158,6 +162,10 @@ object Pv7CatalogResolver {
                 return
             }
 
+            if (engineMismatch(module)) {
+                issues += "Module $moduleId is for a different engine."
+                return
+            }
             selected += moduleId
             if (!root) dependencyOnly += moduleId
 
@@ -223,6 +231,10 @@ object Pv7CatalogResolver {
         val visible = mutableListOf<Pv7VisibleModule>()
 
         modules.sortedWith(compareBy<Pv7ModuleManifest>({ it.category }, { it.name })).forEach { module ->
+            if (engineMismatch(module)) {
+                hidden += Pv7HiddenModule(module, "Different game engine.")
+                return@forEach
+            }
             val blacklistRule = activeBlacklist[module.id]
             if (blacklistRule != null) {
                 hidden += Pv7HiddenModule(

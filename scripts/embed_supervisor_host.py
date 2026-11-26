@@ -43,7 +43,7 @@ def main():
         replacements[f"lib/{abi}/libpv7host.so"] = data
         print(abi, hashlib.sha256(data).hexdigest())
     # Preserve secondary dex (generic SAF provider) without duplicate classes.
-    sources = sorted(p for p in HOST.glob("*.java") if not p.name.startswith("Pv7"))
+    sources = sorted(p for p in (ROOT / "host/src").rglob("*.java") if p.name not in {"Pv7GameStorageDocumentsProvider.java", "Pv7GuestStorageBridge.java", "Pv7GuestStoragePaths.java"})
     with tempfile.TemporaryDirectory(prefix="pv7-host-") as temp:
         base = Path(temp)
         classes = base / "classes"; classes.mkdir()

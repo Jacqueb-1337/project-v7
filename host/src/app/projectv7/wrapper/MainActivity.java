@@ -111,6 +111,12 @@ public final class MainActivity extends Activity {
     private float touchLogicalWidth;
     private float touchLogicalHeight;
     private final Properties hostProperties = new Properties();
+    private boolean cocosBackend;
+    private volatile String cocosStage = "Preparing Cocos guest";
+    private void setEngineRunning(boolean running) {
+        if (cocosBackend) { if (!running) CocosGuestRuntime.stop(); }
+        else nativeSetGameLoopRunning(running);
+    }
 
     private TextView output;
     private SurfaceView renderSurface;
@@ -178,7 +184,7 @@ public final class MainActivity extends Activity {
     private boolean surfaceRebindAvailable = true;
     private boolean surfaceNeedsRebind;
     private boolean setGuestHostSurface(Surface surface) {
-        if (!surfaceRebindAvailable) return false;
+        if (cocosBackend || !surfaceRebindAvailable) return false;
         try {
             nativeSetGuestHostSurface(surface);
             return true;
@@ -190,6 +196,7 @@ public final class MainActivity extends Activity {
     private volatile String javaStartupStage = "Preparing guest";
     private boolean guestLoopReached;
     private void setGuestBackgrounded(boolean value) {
+        if (cocosBackend) { CocosGuestRuntime.background(value); return; }
         if (!backgroundControlAvailable) return;
         try { nativeSetGuestBackgrounded(value); }
         catch (UnsatisfiedLinkError unavailable) { backgroundControlAvailable = false; }
@@ -221,7 +228,20 @@ public final class MainActivity extends Activity {
 
     private void buildGuestOverlay() {
         rootLayout = new FrameLayout(this);
-        rootLayout.addView(renderSurface, new FrameLayout.LayoutParams(-1, -1));
+        if (cocosBackend) {
+            FrameLayout canvas = new FrameLayout(this) {
+                @Override protected void onSizeChanged(int width,int height,int oldWidth,int oldHeight) {
+                    super.onSizeChanged(width,height,oldWidth,oldHeight);
+                    if(width>0 && height>0) {
+                        int w=Math.min(width,Math.round(height*1.5f)), h=Math.min(height,Math.round(width/1.5f));
+                        renderSurface.setLayoutParams(new FrameLayout.LayoutParams(w,h,android.view.Gravity.CENTER));
+                    }
+                }
+            };
+            canvas.setBackgroundColor(android.graphics.Color.BLACK);
+            canvas.addView(renderSurface,new FrameLayout.LayoutParams(-1,-1));
+            rootLayout.addView(canvas,new FrameLayout.LayoutParams(-1,-1));
+        } else rootLayout.addView(renderSurface, new FrameLayout.LayoutParams(-1, -1));
         performanceOverlay = new PerformanceOverlay(this,rootLayout);
         performanceOverlay.configure(PerformanceOverlay.Settings.read(getPreferencesStore()));
         guestOverlay = new LinearLayout(this);
@@ -561,7 +581,7 @@ public final class MainActivity extends Activity {
     private void pollGuest() {
         if (restartRequestAvailable && launchReady) {
             try {
-                if (nativeConsumeRestartRequest()) {
+                if (!cocosBackend && nativeConsumeRestartRequest()) {
                     restartGuestProcess("guest restart request");
                     return;
                 }
@@ -575,10 +595,10 @@ public final class MainActivity extends Activity {
         long now = SystemClock.elapsedRealtime();
         if (heartbeatAvailable && baselineRunning) {
             try {
-                long count = nativeGuestFrameCount();
+                long count = cocosBackend ? CocosGuestRuntime.frames() : nativeGuestFrameCount();
                 long present = lastGuestPresentCount;
                 if (extendedHeartbeat) {
-                    try { present = nativeGuestPresentCount(); }
+                    try { present = cocosBackend ? CocosGuestRuntime.presents() : nativeGuestPresentCount(); }
                     catch (UnsatisfiedLinkError unavailable) { extendedHeartbeat = false; }
                 }
                 if (count > 0) guestLoopReached = true;
@@ -601,7 +621,7 @@ public final class MainActivity extends Activity {
         if (!guestLoopReached && !showingRecovery) {
             String stage = javaStartupStage;
             if (baselineRunning && nativeStagesAvailable) {
-                try { stage = nativeGuestStartupStage(); }
+                try { stage = cocosBackend ? cocosStage : nativeGuestStartupStage(); }
                 catch (UnsatisfiedLinkError unavailable) { nativeStagesAvailable = false; }
             }
             guestStatus.setText(stage+"...");
@@ -666,7 +686,8 @@ public final class MainActivity extends Activity {
             viewHeight = Math.max(1, metrics.heightPixels);
         }
 
-        if (viewWidth >= viewHeight) {
+        if (cocosBackend) { gameBufferWidth=480; gameBufferHeight=320; }
+        else if (viewWidth >= viewHeight) {
             gameBufferWidth = GAME_BUFFER_LONG_EDGE;
             gameBufferHeight = Math.max(1, Math.round((float) GAME_BUFFER_LONG_EDGE * viewHeight / viewWidth));
         } else {
@@ -691,6 +712,7 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         HostKeyboard.attach(this);
         configureHostOptions();
+        cocosBackend = "cocos2dx".equals(hostProperties.getProperty("guest.engine"));
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         File guestSharedDir = new File(getFilesDir(), "GuestSharedStorage");
         if (!guestSharedDir.exists() && !guestSharedDir.mkdirs()) {
@@ -725,6 +747,7 @@ public final class MainActivity extends Activity {
                         + " x=" + event.getX() + " y=" + event.getY()
                         + " view=" + renderSurface.getWidth() + "x" + renderSurface.getHeight());
                 if ((!sawGuestFrame && heartbeatAvailable) || restartingGuest || pointerCount <= 0) return true;
+                if (cocosBackend) { CocosGuestRuntime.touch(event,renderSurface.getWidth(),renderSurface.getHeight()); return true; }
                 int[] ids = new int[pointerCount];
                 float[] xs = new float[pointerCount];
                 float[] ys = new float[pointerCount];
@@ -799,7 +822,7 @@ public final class MainActivity extends Activity {
                 }
                 restartWhenStopped = true;
                 baselineStarted = false;
-                nativeSetGameLoopRunning(false);
+                setEngineRunning(false);
             }
         });
 
@@ -850,7 +873,7 @@ public final class MainActivity extends Activity {
         if(performanceOverlay!=null)performanceOverlay.close();
         clearSupervisorNotification();
         restartWhenStopped = false;
-        nativeSetGameLoopRunning(false);
+        setEngineRunning(false);
         super.onDestroy();
     }
 
@@ -1133,7 +1156,7 @@ public final class MainActivity extends Activity {
             surfaceNeedsRebind = false;
             restartWhenStopped = false;
             if (!compatConfigured) {
-                configureCompatibility();
+                if (!cocosBackend) configureCompatibility();
                 compatConfigured = true;
             }
             lastGuestProgress = SystemClock.elapsedRealtime();
@@ -1152,7 +1175,7 @@ public final class MainActivity extends Activity {
             @Override
             public void run() {
                 try {
-                    prepareGuestsAndRunSafeBaseline();
+                    if(cocosBackend) prepareAndRunCocos(); else prepareGuestsAndRunSafeBaseline();
                 } finally {
                     boolean restart;
                     synchronized (baselineLock) {
@@ -1311,6 +1334,39 @@ public final class MainActivity extends Activity {
         return text.toString();
     }
 
+    private void prepareAndRunCocos() {
+        boolean started = false;
+        try {
+            setJavaStartupStage("Preparing Cocos runtime");
+            CocosGuestRuntime.load();
+            String guestPackage = hostProperties.getProperty("guest.package","");
+            int version = Integer.parseInt(hostProperties.getProperty("guest.versionCode","0"));
+            CocosGuestRuntime.prepare(this,guestPackage,version);
+            File library = prepareGuestAsset("guest/libgame.so","pv7-guest-libgame.so");
+            final Surface surface = renderSurface.getHolder().getSurface();
+            synchronized (baselineLock) {
+                if (!activityResumed || restartWhenStopped || surface == null || !surface.isValid()) return;
+                CocosGuestRuntime.reset(Boolean.parseBoolean(hostProperties.getProperty("guest.bestPark","false")));
+                baselineRunning = true;
+                baselineThread = Thread.currentThread();
+                started = true;
+            }
+            cocosStage = "Starting Cocos translator";
+            int exit = CocosGuestRuntime.run(library,new File(getFilesDir(),"pv7-cocos-runtime.log"),surface);
+            if (exit != 0 || (activityResumed && !restartWhenStopped && !restartingGuest && !isFinishing()))
+                guestPreparationFailed = true;
+            Log.i("PV7HOST","PV7 Cocos backend exit="+exit);
+        } catch (Throwable failure) {
+            guestPreparationFailed=true;
+            Log.e("PV7HOST","Cocos preparation/runtime failed",failure);
+        } finally {
+            if (started) synchronized (baselineLock) {
+                baselineThread=null;
+                baselineRunning=false;
+            }
+        }
+    }
+
     private void prepareGuestsAndRunSafeBaseline() {
         StringBuilder text = new StringBuilder(environmentHeader());
         SharedPreferences prefs = getPreferencesStore();
@@ -1393,7 +1449,7 @@ public final class MainActivity extends Activity {
                     synchronized (baselineLock) {
                         ownsActiveSlot = baselineThread == Thread.currentThread();
                         if (ownsActiveSlot) {
-                            nativeSetGameLoopRunning(false);
+                            setEngineRunning(false);
                             baselineThread = null;
                             baselineRunning = false;
                         }
@@ -1424,7 +1480,7 @@ public final class MainActivity extends Activity {
                 return;
             }
             baselineThread = worker;
-            nativeSetGameLoopRunning(true);
+            setEngineRunning(true);
             baselineRunning = true;
         }
         worker.start();
