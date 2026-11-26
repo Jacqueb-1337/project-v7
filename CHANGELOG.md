@@ -1,3 +1,15 @@
+# [1.41.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.40.0...v1.41.0) (2026-11-26)
+
+
+### Bug Fixes
+
+* restore PV7 greetings and show game catalog icons ([#33](https://github.com/Jacqueb-1337/project-v7/issues/33)) ([3b79a74](https://github.com/Jacqueb-1337/project-v7/commit/3b79a74e977f3f0e0404b9aeb05489420666922e))
+
+
+### Features
+
+* **supervisor:** animated OBB recovery and filename-independent import ([#32](https://github.com/Jacqueb-1337/project-v7/issues/32)) ([7d0c2c1](https://github.com/Jacqueb-1337/project-v7/commit/7d0c2c1cbb79388337c6ff1ae54932573ff33243))
+
 # [1.40.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.3...v1.40.0) (2026-11-26)
 
 
