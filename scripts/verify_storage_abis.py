@@ -30,10 +30,16 @@ def main() -> None:
         for classname in (b"Pv7GuestStoragePaths", b"Pv7GuestStorageBridge",
                           b"Pv7GameStorageDocumentsProvider"):
             assert classname in dex, f"{classname!r} missing from DEX"
+        primary = archive.read("classes.dex")
+        for marker in (b"nativeConsumeRestartRequest", b"nativeGuestFrameCount", b"GuestRestartActivity", b"Lost connection to the guest", b"PerformanceOverlay", b"Show text background", b"PV7 supervisor", b"guest-launch-cache."):
+            assert marker in primary, f"Missing guest supervisor marker: {marker!r}"
+        assert archive.read("assets/pv7/splash-logo.png").startswith(b"\x89PNG\r\n\x1a\n")
         for abi in ABIS:
             entry = f"lib/{abi}/libpv7host.so"
             raw = archive.read(entry)
             validate_elf(raw, abi)
+            for marker in (b"nativeGuestFrameCount", b"RuntimeNativeClocks", b"RuntimeDisableBlockLinking", b"RuntimeFrameSleepDeadline", b"nativeGuestPresentCount", b"nativeGuestStartupStage", b"nativeSetGuestBackgrounded", b"nativeSetGuestHostSurface", b"RuntimeCodeCacheMiB", b"RuntimeDispatchCacheEntries", b"RuntimeDispatchVictimEntries"):
+                assert marker in raw, f"{abi}: missing runtime supervisor marker {marker!r}"
             print("PV7_ABI_STORAGE_VALID", abi, len(raw),
                   hashlib.sha256(raw).hexdigest()[:20])
     print("PV7_ABI_TEMPLATE_PASS")
