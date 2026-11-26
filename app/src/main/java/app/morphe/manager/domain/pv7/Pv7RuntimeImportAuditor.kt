@@ -27,6 +27,14 @@ object Pv7RuntimeImportAuditor {
     private data class Import(val name: String, val library: String, val weak: Boolean, val function: Boolean)
     private data class Image(val exports: Set<String>, val imports: List<Import>)
 
+    fun runtimeOverride(modules: List<Pv7ModuleManifest>): Pv7ModuleManifest? =
+        modules.sortedWith(compareBy<Pv7ModuleManifest> {
+            if (it.kind == Pv7ModuleKind.GENERAL) 0 else 1
+        }.thenBy { it.id }).lastOrNull { module ->
+            module.payloadFiles.any { it == "lib/arm64-v8a/libpv7host.so" ||
+                it == "lib/arm64-v8a/libpv7host.so.pv7z" }
+        }
+
     fun inspectUnity(apk: File, handlers: Set<String>): Pv7RuntimeAudit {
         return try {
             ZipFile(apk).use { zip ->

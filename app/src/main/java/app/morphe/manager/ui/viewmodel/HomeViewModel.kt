@@ -2439,17 +2439,8 @@ class HomeViewModel(
                     abis = apkFile?.let(Pv7EngineDetector::detectAbis).orEmpty(),
                     engine = apkFile?.let { runCatching { Pv7EngineDetector.detect(it) }.getOrNull() }
                 )
-                val auditedTarget = if (target.engine?.id == "unity" && apkFile != null) {
-                    val audit = runCatching {
-                        val handlers = app.assets.open("pv7/runtime-import-handlers.txt")
-                            .bufferedReader().useLines { lines ->
-                                lines.map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
-                            }
-                        check(handlers.isNotEmpty()) { "Missing runtime coverage manifest" }
-                        Pv7RuntimeImportAuditor.inspectUnity(apkFile, handlers)
-                    }.getOrElse { Pv7RuntimeAudit(notes = listOf("Runtime coverage manifest unavailable.")) }
-                    target.copy(runtimeAudit = audit)
-                } else target
+                val initial = Pv7CatalogResolver.resolve(target, catalog.modules, catalog.profiles)
+                val auditedTarget = auditPv7Target(target, apkFile, initial)
                 Triple(catalog, auditedTarget, sourceDisplayName)
             }
 
@@ -2504,6 +2495,51 @@ class HomeViewModel(
         }
     }
 
+    private fun auditPv7Target(target: Pv7AppTarget, apk: File?, plan: Pv7ResolutionPlan): Pv7AppTarget {
+        if (target.engine?.id != "unity" || apk == null) return target.copy(runtimeAudit = null)
+        val runtime = Pv7RuntimeImportAuditor.runtimeOverride(plan.visibleModules.filter { it.selected }.map { it.manifest })
+        val path = "assets/pv7/runtime-import-handlers.txt"
+        val scope = runtime?.name ?: "Base host template"
+        val audit = runCatching {
+            val input = if (runtime == null) app.assets.open("pv7/runtime-import-handlers.txt")
+            else {
+                check(path in runtime.payloadFiles)
+                val root = runtime.sourceAssetPath
+                if (root.startsWith("file:")) File(root.removePrefix("file:"), "payload/$path").inputStream()
+                else app.assets.open(root.removePrefix("asset:") + "/payload/" + path)
+            }
+            val handlers = input.bufferedReader().useLines { lines ->
+                lines.map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+            }
+            check(handlers.isNotEmpty())
+            val report = Pv7RuntimeImportAuditor.inspectUnity(apk, handlers)
+            report.copy(notes = listOf("Runtime: $scope") + report.notes)
+        }.getOrElse { Pv7RuntimeAudit(notes = listOf("No coverage manifest for $scope.")) }
+        return target.copy(runtimeAudit = audit)
+    }
+
+    private fun refreshPv7Audit() {
+        val state = pv7PendingRun ?: return
+        if (state.target.engine?.id != "unity") return
+        pv7PendingRun = state.copy(target = state.target.copy(
+            runtimeAudit = Pv7RuntimeAudit(notes = listOf("Inspecting selected runtime..."))))
+        viewModelScope.launch {
+            val audited = withContext(Dispatchers.IO) {
+                val apk = when (val selected = state.selectedApp) {
+                    is SelectedApp.Local -> selected.file
+                    is SelectedApp.Installed -> runCatching {
+                        File(app.packageManager.getApplicationInfo(selected.packageName, 0).sourceDir)
+                    }.getOrNull()
+                }
+                auditPv7Target(state.target, apk, state.resolution)
+            }
+            val current = pv7PendingRun ?: return@launch
+            if (current.catalog === state.catalog && current.selectedApp == state.selectedApp &&
+                current.resolution.selectedModuleIds == state.resolution.selectedModuleIds)
+                pv7PendingRun = current.copy(target = audited)
+        }
+    }
+
     /** Explicit contributor override, never treated as tested support. */
     fun changePv7CatalogRepository(raw: String) {
         val state = pv7PendingRun ?: return
@@ -2541,6 +2577,7 @@ class HomeViewModel(
                     resolution, state.selectedApp, state.sourceDisplayName, emptyMap()
                 )
             )
+            refreshPv7Audit()
         }
     }
 
@@ -2631,6 +2668,7 @@ class HomeViewModel(
                 existing = state.optionValues
             )
         )
+        refreshPv7Audit()
     }
 
     fun confirmPv7Selection() {

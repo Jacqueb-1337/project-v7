@@ -22,6 +22,7 @@
   ],
   "operations": [],
   "payloadFiles": [
-    "lib/arm64-v8a/libpv7host.so.pv7z"
+    "lib/arm64-v8a/libpv7host.so.pv7z",
+    "assets/pv7/runtime-import-handlers.txt"
   ]
 }
