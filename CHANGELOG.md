@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.42.0...v1.43.0) (2026-11-26)
+
+
+### Features
+
+* Experimental Unity 5 support for Guns and Spurs ([cc04dd6](https://github.com/Jacqueb-1337/project-v7/commit/cc04dd66875480e4280ec78dd6f87189f868645c))
+
 # [1.42.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.41.0...v1.42.0) (2026-11-26)
 
 
