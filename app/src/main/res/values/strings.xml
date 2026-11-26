@@ -1472,4 +1472,6 @@ Do you still want to continue?"</string>
     <string name="pv7_game_catalog_experimental">Experimental</string>
     <string name="pv7_game_catalog_other_apk">Patch another APK</string>
     <string name="pv7_game_catalog_supported">Supported</string>
+    <string name="pv7_experimental_games">Experimental games</string>
+    <string name="pv7_experimental_games_description">Show games with experimental or unconfirmed compatibility in the game catalog.</string>
 </resources>

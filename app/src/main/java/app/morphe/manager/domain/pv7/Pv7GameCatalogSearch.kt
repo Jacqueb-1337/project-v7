@@ -3,6 +3,9 @@ package app.morphe.manager.domain.pv7
 import java.util.Locale
 
 object Pv7GameCatalogSearch {
+    fun visibleGames(apps: Collection<Pv7SupportedApp>, includeExperimental: Boolean): List<Pv7SupportedApp> =
+        apps.filter { !it.experimental || includeExperimental }
+
     fun search(apps: Collection<Pv7SupportedApp>, query: String): List<Pv7SupportedApp> {
         val tokens = query.trim().lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotEmpty() }
         return apps.asSequence()

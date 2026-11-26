@@ -46,6 +46,7 @@ fun PatcherTuningSection(
     val stripUnusedNativeLibs by prefs.stripUnusedNativeLibs.getAsState()
     val externalBatchPatchEnabled by prefs.externalBatchPatchEnabled.getAsState()
 
+    val showExperimentalPv7Games by prefs.showExperimentalPv7Games.getAsState()
     val showProcessRuntimeDialog = remember { mutableStateOf(false) }
 
     if (showProcessRuntimeDialog.value) {
@@ -118,6 +119,16 @@ fun PatcherTuningSection(
                 icon = Icons.Outlined.LayersClear,
                 title = stringResource(R.string.settings_advanced_strip_unused_libs),
                 subtitle = stringResource(R.string.settings_advanced_strip_unused_libs_description)
+            )
+
+            SettingsDivider()
+
+            SettingsSwitchItem(
+                checked = showExperimentalPv7Games,
+                onToggle = { settingsViewModel.setShowExperimentalPv7Games(!showExperimentalPv7Games) },
+                icon = Icons.Outlined.Speed,
+                title = stringResource(R.string.pv7_experimental_games),
+                subtitle = stringResource(R.string.pv7_experimental_games_description)
             )
 
             SettingsDivider()

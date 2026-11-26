@@ -97,6 +97,7 @@ class PreferencesManager(
 
     /** Whether other apps may start a batch patch run through an intent. */
     val externalBatchPatchEnabled = booleanPreference("external_batch_patch_enabled", false)
+    val showExperimentalPv7Games = booleanPreference("show_experimental_pv7_games", false)
 
     /** Packages allowed to start a batch patch run without a confirmation dialog. */
     val externalBatchPatchAllowlist = stringSetPreference("external_batch_patch_allowlist", emptySet())
