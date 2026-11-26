@@ -1,3 +1,10 @@
+## [1.39.2](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.1...v1.39.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **pv7:** prevent Best Park combat exit and diagnose missing expansion data ([d5e0ccd](https://github.com/Jacqueb-1337/project-v7/commit/d5e0ccdd5de0dc7ebd2017eb20c6d445e7c9e0fc))
+
 ## [1.39.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.39.0...v1.39.1) (2026-11-26)
 
 
