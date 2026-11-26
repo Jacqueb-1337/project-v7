@@ -484,6 +484,8 @@ fun HomeDialogs(
             explicitModuleIds = state.explicitModuleIds,
             optionValues = state.optionValues,
             catalogIssues = state.catalog.issues,
+            downloadingModules = state.downloadingModules,
+            moduleDownloadError = state.moduleDownloadError,
             onCatalogChange = homeViewModel::changePv7CatalogRepository,
             onToggleModule = homeViewModel::togglePv7Module,
             onOptionChange = homeViewModel::updatePv7Option,

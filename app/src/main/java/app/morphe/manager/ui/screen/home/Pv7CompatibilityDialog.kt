@@ -25,6 +25,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import app.morphe.manager.domain.pv7.Pv7CatalogLoader
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,6 +56,8 @@ internal fun Pv7CompatibilityDialog(
     explicitModuleIds: Set<String>,
     optionValues: Map<String, String>,
     catalogIssues: List<String>,
+    downloadingModules: Boolean,
+    moduleDownloadError: String?,
     onCatalogChange: (String) -> Unit,
     onToggleModule: (String) -> Unit,
     onOptionChange: (String, String, String) -> Unit,
@@ -64,6 +68,8 @@ internal fun Pv7CompatibilityDialog(
     val shownModules = resolution.visibleModules.filter {
         it.selected || it.badge != Pv7ModuleBadge.UNTESTED || it.manifest.kind == Pv7ModuleKind.GENERAL
     }
+    val loader = Pv7CatalogLoader(LocalContext.current)
+    val needsDownload = shownModules.filter { it.selected && !loader.isModuleDownloaded(it.manifest) }
     var editingCatalog by remember(catalogRepository) { mutableStateOf(catalogRepository) }
     val testedRecommendations = resolution.profile?.takeIf { it.tested }?.recommendedModules.orEmpty().toSet()
     val missingOptions = shownModules
@@ -93,9 +99,9 @@ internal fun Pv7CompatibilityDialog(
         scrollable = false,
         footer = {
             AppDialogButtonRow(
-                primaryText = "Continue",
+                primaryText = if (downloadingModules) "Downloading..." else if (needsDownload.isNotEmpty()) "Download & continue" else "Continue",
                 onPrimaryClick = onProceed,
-                primaryEnabled = Pv7GuestBackend.canProceed(target, resolution.selectedModuleIds) &&
+                primaryEnabled = !downloadingModules && Pv7GuestBackend.canProceed(target, resolution.selectedModuleIds) &&
                     !missingOptions &&
                     resolution.selectedModuleIds.isNotEmpty() &&
                     (catalogIssues + resolution.issues).isEmpty(),
@@ -110,6 +116,9 @@ internal fun Pv7CompatibilityDialog(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (downloadingModules) Pv7CatalogStatus()
+            else if (needsDownload.isNotEmpty()) Text("Required downloads: " + needsDownload.joinToString { it.manifest.name })
+            moduleDownloadError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             val profile = resolution.profile
             if (profile != null) {
                 Surface(
@@ -266,7 +275,7 @@ internal fun Pv7CompatibilityDialog(
                 val isRequired = row.selected && !isExplicit
                 val isRecommended = module.id in testedRecommendations
                 val isSuggested = !isRecommended && row.badge == Pv7ModuleBadge.ENGINE_SUGGESTED
-                val canToggle = !isRequired
+                val canToggle = !isRequired && !downloadingModules
 
                 Surface(
                     onClick = { if (canToggle) onToggleModule(module.id) },
@@ -297,6 +306,8 @@ internal fun Pv7CompatibilityDialog(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
+                            Text(if (loader.isModuleDownloaded(module)) "Available offline" else "Download required",
+                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (module.description.isNotBlank()) {
                                 Spacer(Modifier.height(3.dp))
                                 Text(

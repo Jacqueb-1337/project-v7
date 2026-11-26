@@ -34,6 +34,8 @@ fun Pv7GameCatalogScreen(
     onGameClick: (Pv7SupportedApp) -> Unit
 ) {
     val progress by Pv7CatalogLoader.refreshProgress.collectAsState()
+    var moduleManagerOpen by rememberSaveable { mutableStateOf(false) }
+    if (moduleManagerOpen) Pv7ModuleManagerDialog { moduleManagerOpen = false }
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(apps, query) { Pv7GameCatalogSearch.search(apps, query) }
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
@@ -45,6 +47,9 @@ fun Pv7GameCatalogScreen(
                 IconButton(onClick = onRefresh, enabled = progress?.active != true) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
             }
             Pv7CatalogStatus(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            OutlinedButton(onClick = { moduleManagerOpen = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text("Manage modules")
+            }
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -119,8 +124,8 @@ fun Pv7CatalogStatus(modifier: Modifier = Modifier) {
                         Pv7CatalogRefreshPhase.APPS -> "Games: ${state.completed} / ${state.total}"
                         Pv7CatalogRefreshPhase.VALIDATING -> "Validating catalog"
                         Pv7CatalogRefreshPhase.APPLYING -> "Applying catalog"
-                        Pv7CatalogRefreshPhase.FAILED -> "Refresh failed. Showing available catalog."
-                        else -> if (state.changed) "Compatibility modules updated" else "Compatibility modules up to date"
+                        Pv7CatalogRefreshPhase.FAILED -> state.item.ifBlank { "Refresh failed. Showing available catalog." }
+                        else -> state.item.ifBlank { if (state.changed) "Catalog updated" else "Catalog up to date" }
                     }
                     Text(label, style = MaterialTheme.typography.labelMedium)
                     if (!state.active && state.checkedAtMillis > 0) {
