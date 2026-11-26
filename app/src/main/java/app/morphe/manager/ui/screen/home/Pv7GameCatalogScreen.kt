@@ -27,6 +27,7 @@ import app.morphe.manager.domain.pv7.Pv7SupportedApp
 @Composable
 fun Pv7GameCatalogScreen(
     apps: Collection<Pv7SupportedApp>,
+    allowModuleManagement: Boolean = true,
     loading: Boolean,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -35,7 +36,7 @@ fun Pv7GameCatalogScreen(
 ) {
     val progress by Pv7CatalogLoader.refreshProgress.collectAsState()
     var moduleManagerOpen by rememberSaveable { mutableStateOf(false) }
-    if (moduleManagerOpen) Pv7ModuleManagerDialog { moduleManagerOpen = false }
+    if (moduleManagerOpen && allowModuleManagement) Pv7ModuleManagerDialog { moduleManagerOpen = false }
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(apps, query) { Pv7GameCatalogSearch.search(apps, query) }
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
@@ -47,7 +48,7 @@ fun Pv7GameCatalogScreen(
                 IconButton(onClick = onRefresh, enabled = progress?.active != true) { Icon(Icons.Outlined.Refresh, stringResource(R.string.pv7_game_catalog_refresh)) }
             }
             Pv7CatalogStatus(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-            OutlinedButton(onClick = { moduleManagerOpen = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            OutlinedButton(enabled = allowModuleManagement, onClick = { moduleManagerOpen = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Text("Manage modules")
             }
             OutlinedTextField(

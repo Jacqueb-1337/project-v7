@@ -286,6 +286,7 @@ fun HomeScreen(
 
     if (catalogOpen) {
         Pv7GameCatalogScreen(
+            allowModuleManagement = batchRun == null,
             apps = Pv7GameCatalogSearch.visibleGames(catalogApps.values, showExperimentalPv7Games),
             loading = catalogApps.isEmpty() && bundlePipelineLoading,
             onBack = { catalogOpen = false },

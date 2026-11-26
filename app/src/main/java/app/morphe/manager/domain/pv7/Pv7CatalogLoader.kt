@@ -232,8 +232,50 @@ class Pv7CatalogLoader(
             }.getOrDefault(false)
         }
 
-    fun ensurePayloads(ids: Set<String>): Pv7LoadedCatalog = synchronized(refreshLock) {
+    fun moduleCacheBytes(module: Pv7ModuleManifest): Long =
+        moduleCacheDirectory(module)?.walkTopDown()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+
+    private fun moduleCacheDirectory(module: Pv7ModuleManifest): File? {
+        if (!module.sourceAssetPath.startsWith("file:")) return null
+        val versionDir = File(module.sourceAssetPath.removePrefix("file:"))
+        val root = cacheRootFor(repository)
+        val store = File(root.parentFile, root.name + "-payloads")
+        val moduleDir = versionDir.parentFile ?: return null
+        check(moduleDir.canonicalPath.startsWith(store.canonicalPath + File.separator))
+        return moduleDir
+    }
+
+    fun removePayloads(ids: Set<String>) = synchronized(refreshLock) {
         val catalog = load(false)
+        require(catalog.issues.isEmpty())
+        val root = cacheRootFor(repository)
+        val indexFile = File(root, "index.json")
+        if (!indexFile.isFile) return@synchronized
+        val index = json.decodeFromString<Pv7CatalogIndex>(stripBom(indexFile.readText()))
+        index.modules.forEach { path ->
+            val manifest = json.decodeFromString<Pv7ModuleManifest>(stripBom(safeChild(root, path).readText()))
+            if (manifest.id in ids) {
+                val module = catalog.modules.first { it.id == manifest.id }
+                val legacy = safeChild(root, path.substringBeforeLast('/') + "/payload")
+                check(!legacy.exists() || legacy.deleteRecursively()) { "Cannot remove legacy cache" }
+                val dir = moduleCacheDirectory(module)
+                check(dir == null || !dir.exists() || dir.deleteRecursively()) { "Cannot remove module cache" }
+            }
+        }
+    }
+
+    fun ensurePayloads(ids: Set<String>): Pv7LoadedCatalog = synchronized(refreshLock) {
+        var catalog = load(false)
+        if (catalog.origin == Pv7CatalogOrigin.BUNDLED &&
+            pv7DependencyClosure(catalog.modules, ids).any { !isModuleDownloaded(it) }) {
+            val previous = pv7DependencyClosure(catalog.modules, ids).associateBy { it.id }
+            catalog = load(true)
+            val current = pv7DependencyClosure(catalog.modules, ids).associateBy { it.id }
+            check(previous.mapValues { it.value.copy(sourceAssetPath = "") } ==
+                current.mapValues { it.value.copy(sourceAssetPath = "") }) {
+                "Module catalog changed. Reopen module selection and retry."
+            }
+        }
         require(catalog.issues.isEmpty()) { catalog.issues.joinToString("; ") }
         val missing = pv7DependencyClosure(catalog.modules, ids).filterNot(::isModuleDownloaded)
         if (missing.isEmpty()) return@synchronized catalog
