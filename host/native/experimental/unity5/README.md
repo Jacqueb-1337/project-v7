@@ -24,6 +24,8 @@ and 5 sources after newline normalization.
   initialize UnityWebRequest when registered and use the indexed surface ABI.
 - 05: reference-counted guest native-window proxy, with native pin transfer
   on surface replacement and cleanup on shutdown.
+- 06: ARM EABI syscall dispatch for guest PID/TID and virtual affinity masks;
+  unknown calls return ENOSYS rather than being forwarded to the host.
 
 ## Verification and limitations
 
@@ -50,5 +52,9 @@ The first nativeRender entered, ran two pthread_once initializers, and
 stopped on syscall. Disassembly of its call site shows ARM EABI syscall
 241 (sched_setaffinity), not the ARM64 syscall number. No frame rendered yet.
 
-Next: implement guest-scoped syscall dispatch, audit remaining imported data
-and JNI calls, and regression-test Unity 4.6 before replacing the template.
+Stage 8 compiled and linked with a guest-scoped syscall dispatcher. Affinity
+masks are virtual state for cooperative guest threads, not host CPU pinning.
+Runtime verification remains pending.
+
+Next: verify stage 8, audit remaining imported data and JNI calls, and
+regression-test Unity 4.6 before replacing the template.

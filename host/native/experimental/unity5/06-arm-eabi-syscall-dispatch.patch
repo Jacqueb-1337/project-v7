@@ -1,0 +1,63 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -6270,6 +6270,52 @@
+             Ret(1024u);
+ #endif
+             return true;
++        }
++        // ARM EABI syscall numbers are not interchangeable with AArch64.
++        // Guest threads are cooperatively scheduled, so never change affinity
++        // of a real host thread for a guest thread ID. Store the virtual mask.
++        if (fast_name == "syscall" || fast_name == "sched_setaffinity" ||
++            fast_name == "sched_getaffinity") {
++            const bool raw = fast_name == "syscall";
++            const auto number = raw ? Arg(0) : (fast_name == "sched_setaffinity" ? 241u : 242u);
++            const unsigned base = raw ? 1u : 0u;
++            if (number == 20u) { Ret(1234u); return true; } // getpid
++            if (number == 224u) { Ret(current_thread_id_); return true; } // gettid
++            if (number == 241u || number == 242u) {
++                auto tid = Arg(base);
++                const auto length = Arg(base + 1u);
++                const auto address = Arg(base + 2u);
++                if (!tid) tid = current_thread_id_;
++                const bool exists = tid == 1u || tid == current_thread_id_ ||
++                    std::any_of(guest_thread_launches_.begin(), guest_thread_launches_.end(),
++                        [&](const auto& thread) { return thread.id == tid && !thread.finished; });
++                if (!exists) { SetErrno(3u); Ret(0xffffffffu); return true; } // ESRCH
++                if (length < 4u || length > 128u) { SetErrno(22u); Ret(0xffffffffu); return true; }
++                if (!address || !Fits(address, length)) { SetErrno(14u); Ret(0xffffffffu); return true; }
++                // Consistent with the four virtual CPUs reported by sysconf.
++                constexpr std::uint32_t available = 0x0fu;
++                if (number == 241u) {
++                    const auto mask = Read<std::uint32_t>(address) & available;
++                    if (!mask) { SetErrno(22u); Ret(0xffffffffu); return true; }
++                    guest_affinity_masks_[tid] = mask;
++                    Ret(0u);
++                } else {
++                    const auto found = guest_affinity_masks_.find(tid);
++                    std::memset(memory_.data() + address, 0, raw ? 4u : length);
++                    Write32(memory_, address, found == guest_affinity_masks_.end() ? available : found->second);
++                    Ret(raw ? 4u : 0u);
++                }
++#if defined(__ANDROID__)
++                __android_log_print(ANDROID_LOG_INFO, "PV7HOST", "PV7SYSCALL ARM %u virtual tid=%u mask=%08x",
++                    number, tid, guest_affinity_masks_.count(tid) ? guest_affinity_masks_.at(tid) : available);
++#endif
++                return true;
++            }
++#if defined(__ANDROID__)
++            __android_log_print(ANDROID_LOG_WARN, "PV7HOST", "PV7SYSCALL unsupported ARM %u pc=%08x lr=%08x",
++                number, jit->Regs()[15], jit->Regs()[14]);
++#endif
++            SetErrno(38u); Ret(0xffffffffu); return true; // ENOSYS
+         }
+         if (fast_name == "getpid") { Ret(1234); return true; }
+         if (fast_name == "gettid") { Ret(current_thread_id_); return true; }
+@@ -9301,6 +9347,7 @@
+     std::unordered_map<std::uint32_t, GuestGlMappedRange> gl_mapped_ranges_;
+     std::unordered_map<std::uint32_t, HostZlibStream> zlib_streams_;
+ #endif
++    std::unordered_map<std::uint32_t, std::uint32_t> guest_affinity_masks_;
+     std::string managed_dir_;
+     void* host_native_window_ = nullptr;
+     void* host_jni_env_ = nullptr;
