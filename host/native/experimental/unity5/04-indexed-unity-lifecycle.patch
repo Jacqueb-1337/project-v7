@@ -1,0 +1,89 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -10482,6 +10482,8 @@
+                 std::uint32_t unity_init_jni = 0;
+                 std::uint32_t unity_native_file = 0;
+                 std::uint32_t unity_native_init_www = 0;
++                std::uint32_t unity_native_init_web_request = 0;
++                bool unity_indexed_surface = false;
+                 std::uint32_t unity_native_set_default_display = 0;
+                 std::uint32_t unity_native_recreate_gfx_state = 0;
+                 std::uint32_t unity_native_resize = 0;
+@@ -10514,11 +10516,17 @@
+                                reg.name == "nativeInitWWW" && reg.signature == "(Ljava/lang/Class;)V") {
+                         unity_native_init_www = reg.function;
+                     } else if (reg.class_name == "com/unity3d/player/UnityPlayer" &&
++                               reg.name == "nativeInitWebRequest" && reg.signature == "(Ljava/lang/Class;)V") {
++                        unity_native_init_web_request = reg.function;
++                    } else if (reg.class_name == "com/unity3d/player/UnityPlayer" &&
+                                reg.name == "nativeSetDefaultDisplay" && reg.signature == "(I)V") {
+                         unity_native_set_default_display = reg.function;
+                     } else if (reg.class_name == "com/unity3d/player/UnityPlayer" &&
+-                               reg.name == "nativeRecreateGfxState" && reg.signature == "(Landroid/view/Surface;)V") {
++                               reg.name == "nativeRecreateGfxState" &&
++                               (reg.signature == "(Landroid/view/Surface;)V" ||
++                                reg.signature == "(ILandroid/view/Surface;)V")) {
+                         unity_native_recreate_gfx_state = reg.function;
++                        unity_indexed_surface = reg.signature == "(ILandroid/view/Surface;)V";
+                     } else if (reg.class_name == "com/unity3d/player/UnityPlayer" &&
+                                reg.name == "nativeResize" && reg.signature == "(IIII)V") {
+                         unity_native_resize = reg.function;
+@@ -11535,13 +11543,23 @@
+                                 env.GetOrCreateJniClassHandle("com/unity3d/player/WWW");
+                             const bool init_www_ok = run_unity_registered_native(
+                                 "nativeInitWWW", unity_native_init_www, www_class_handle, 0, 0, 0);
+-                            if (init_www_ok) {
+-                            const bool default_display_ok = run_unity_registered_native(
++                            // Select the lifecycle ABI from actual registered JNI signatures.
++                            // The indexed-surface API has no separate display/resize methods.
++                            const bool indexed_lifecycle = unity_indexed_surface &&
++                                !unity_native_set_default_display && !unity_native_resize;
++                            const bool web_request_ok = init_www_ok &&
++                                (!unity_native_init_web_request || run_unity_registered_native(
++                                    "nativeInitWebRequest", unity_native_init_web_request,
++                                    env.GetOrCreateJniClassHandle("com/unity3d/player/UnityWebRequest"), 0, 0, 0));
++                            if (web_request_ok) {
++                            report << "    Unity lifecycle ABI: " << (indexed_lifecycle ? "indexed surface" : "legacy surface") << "\n";
++                            const bool default_display_ok = indexed_lifecycle || run_unity_registered_native(
+                                 "nativeSetDefaultDisplay", unity_native_set_default_display, 0, 0, 0, 0);
+                             if (default_display_ok) {
+                                 const bool recreate_gfx_ok = run_unity_registered_native(
+                                     "nativeRecreateGfxState", unity_native_recreate_gfx_state,
+-                                    kJniFakeObjectHandle, 0, 0, 0);
++                                    unity_indexed_surface ? 0u : kJniFakeObjectHandle,
++                                    unity_indexed_surface ? kJniFakeObjectHandle : 0u, 0, 0);
+                                 if (recreate_gfx_ok) {
+                                     std::uint32_t surface_width = 1;
+                                     std::uint32_t surface_height = 1;
+@@ -11557,7 +11575,7 @@
+                                     env.guest_display_height = surface_height;
+                                     report << "    Shared-state Unity host surface size: "
+                                            << surface_width << "x" << surface_height << "\n";
+-                                    const bool resize_ok = run_unity_registered_native(
++                                    const bool resize_ok = indexed_lifecycle || run_unity_registered_native(
+                                         "nativeResize", unity_native_resize,
+                                         surface_width, surface_height, surface_width, surface_height);
+                                     if (resize_ok) {
+@@ -11569,7 +11587,12 @@
+                                             if (!focus_ok)
+                                                 report << "    Shared-state Unity focus acquisition failed\n";
+                                             std::uint32_t unity_free_got_before_render = 0;
+-                                            Read32(memory, kUnityBase + 0x00a89000u, unity_free_got_before_render);
++                                            for (const auto& relocation : unresolved) {
++                                                if (relocation.owner == "libunity.so" && relocation.symbol == "free") {
++                                                    Read32(memory, relocation.target, unity_free_got_before_render);
++                                                    break;
++                                                }
++                                            }
+                                             report << "    Shared-state Unity free GOT before nativeRender: got=0x"
+                                                    << std::hex << unity_free_got_before_render << std::dec << "\n";
+ #if defined(__ANDROID__)
+@@ -11582,7 +11605,7 @@
+                                             if (first_render_ok) {
+                                                 // nativeResize ignores dimensions before Unity initializes its renderer.
+                                                 // Replay the resize after the first nativeRender has initialized it.
+-                                                const bool late_resize_ok = run_unity_registered_native(
++                                                const bool late_resize_ok = indexed_lifecycle || run_unity_registered_native(
+                                                     "nativeResizeAfterInit", unity_native_resize,
+                                                     surface_width, surface_height, surface_width, surface_height);
+                                                 report << "    Shared-state Unity post-init resize: "

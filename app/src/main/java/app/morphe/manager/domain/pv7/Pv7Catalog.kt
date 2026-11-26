@@ -73,6 +73,7 @@ data class Pv7CompatibilityProfile(
     val profileVersion: Int = 1,
     val maintainer: String? = null,
     val tested: Boolean = true,
+    val playable: Boolean = false,
     val recommendedModules: List<String> = emptyList(),
     val blacklist: List<Pv7BlacklistRule> = emptyList(),
     val notes: String? = null
@@ -82,7 +83,8 @@ data class Pv7AppTarget(
     val packageId: String,
     val versionName: String?,
     val abis: Set<String> = emptySet(),
-    val engine: Pv7EngineFingerprint? = null
+    val engine: Pv7EngineFingerprint? = null,
+    val runtimeAudit: Pv7RuntimeAudit? = null
 )
 
 enum class Pv7ModuleBadge {
@@ -126,16 +128,17 @@ object Pv7CatalogResolver {
         }
         val byId = modules.associateBy { it.id }
         val profile = profiles
-            .filter { it.tested && it.matches(target) }
+            .filter { (it.tested || it.playable) && it.matches(target) }
             .maxByOrNull { it.matchSpecificity(target) }
 
-        val testedRecommended = profile?.recommendedModules.orEmpty().toSet()
+        val profileRecommended = profile?.recommendedModules.orEmpty().toSet()
+        val testedRecommended = if (profile?.tested == true) profileRecommended else emptySet()
         val engineSuggested = if (profile == null) {
             modules.filter { it.suggestedWhenMatched && it.isDesignedFor(target) }.mapTo(linkedSetOf()) { it.id }
         } else {
             emptySet()
         }
-        val recommended = if (profile != null) testedRecommended else engineSuggested
+        val recommended = if (profile != null) profileRecommended else engineSuggested
         val explicitSelection = userSelectedModuleIds ?: recommended
         val selected = linkedSetOf<String>()
         val dependencyOnly = linkedSetOf<String>()
@@ -252,7 +255,7 @@ object Pv7CatalogResolver {
 
             val badge = when {
                 module.id in testedRecommended -> Pv7ModuleBadge.RECOMMENDED
-                module.id in engineSuggested -> Pv7ModuleBadge.ENGINE_SUGGESTED
+                module.id in engineSuggested || module.id in profileRecommended -> Pv7ModuleBadge.ENGINE_SUGGESTED
                 module.id in dependencyOnly -> Pv7ModuleBadge.DEPENDENCY
                 module.isDesignedFor(target) -> Pv7ModuleBadge.COMPATIBLE
                 else -> Pv7ModuleBadge.UNTESTED
@@ -265,6 +268,7 @@ object Pv7CatalogResolver {
                 recommendationReason = when {
                     module.id in testedRecommended ->
                         "Tested and recommended by the Project V7 compatibility profile."
+                    module.id in profileRecommended -> "Playable profile; full compatibility remains unconfirmed."
                     module.id in engineSuggested ->
                         "Experimental engine match; this game has not been maintainer-tested."
                     else -> null

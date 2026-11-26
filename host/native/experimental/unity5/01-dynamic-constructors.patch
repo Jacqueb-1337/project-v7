@@ -1,0 +1,198 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -727,6 +727,64 @@
+         return false;
+     }
+     return true;
++}
++
++// The ELF loader, not a particular Unity release, owns constructor discovery.
++struct GuestInitializers {
++    std::uint32_t init = 0;
++    std::uint32_t array = 0;
++    std::uint32_t array_size = 0;
++};
++
++bool GuestSegmentContains(const GuestImage& image, std::uint32_t relative,
++                          std::uint32_t size, std::uint32_t required_flags) {
++    if (image.ehdr.phentsize < sizeof(Elf32Phdr)) return false;
++    for (std::uint32_t i = 0; i < image.ehdr.phnum; ++i) {
++        Elf32Phdr ph{};
++        if (!ReadStruct(image.file, static_cast<std::size_t>(image.ehdr.phoff) +
++                        static_cast<std::size_t>(i) * image.ehdr.phentsize, ph)) return false;
++        if (ph.type != kProgramTypeLoad || (ph.flags & required_flags) != required_flags) continue;
++        if (relative >= ph.vaddr && static_cast<std::uint64_t>(relative) + size <=
++            static_cast<std::uint64_t>(ph.vaddr) + ph.memsz) return true;
++    }
++    return false;
++}
++
++bool ReadGuestInitializers(const GuestImage& image, GuestInitializers& out) {
++    if (image.ehdr.phentsize < sizeof(Elf32Phdr)) return false;
++    bool found = false;
++    for (std::uint32_t i = 0; i < image.ehdr.phnum; ++i) {
++        Elf32Phdr ph{};
++        if (!ReadStruct(image.file, static_cast<std::size_t>(image.ehdr.phoff) +
++                        static_cast<std::size_t>(i) * image.ehdr.phentsize, ph)) return false;
++        if (ph.type != 2u) continue; // PT_DYNAMIC
++        if (found || ph.filesz % 8u || !RangeFits(ph.offset, ph.filesz, image.file.size())) return false;
++        found = true;
++        bool terminated = false;
++        for (std::size_t off = ph.offset; off < static_cast<std::size_t>(ph.offset) + ph.filesz; off += 8u) {
++            std::uint32_t tag = 0, value = 0;
++            if (!ReadStruct(image.file, off, tag) || !ReadStruct(image.file, off + 4u, value)) return false;
++            if (tag == 0u) { terminated = true; break; } // DT_NULL
++            if (tag == 12u) out.init = value; // DT_INIT
++            if (tag == 25u) out.array = value; // DT_INIT_ARRAY
++            if (tag == 27u) out.array_size = value; // DT_INIT_ARRAYSZ
++        }
++        if (!terminated) return false;
++    }
++    if (!found || out.array_size % 4u || (out.array_size && !out.array)) return false;
++    if (out.array_size && (!GuestSegmentContains(image, out.array, out.array_size, 4u) ||
++        static_cast<std::uint64_t>(image.base) + out.array + out.array_size > image.end)) return false;
++    if (out.init && !GuestSegmentContains(image, out.init & ~1u, 2u, 1u)) return false;
++    return true;
++}
++
++bool GuestInitializerExecutable(const std::vector<GuestImage>& images, std::uint32_t function) {
++    const std::uint32_t address = function & ~1u;
++    for (const auto& image : images) {
++        if (address >= image.base && address < image.end &&
++            GuestSegmentContains(image, address - image.base, (function & 1u) ? 2u : 4u, 1u)) return true;
++    }
++    return false;
+ }
+ 
+ void CollectExports(const GuestImage& image,
+@@ -9330,6 +9388,7 @@
+ };
+ 
+ std::string RunMonoBootstrapTrapProbe(GuestMemory memory,
++                                      const std::vector<GuestImage>& images,
+                                       const std::unordered_map<std::string, ExportSymbol>& exports,
+                                       const std::vector<UnresolvedRelocation>& unresolved,
+                                       const std::string& managed_dir,
+@@ -9348,7 +9407,12 @@
+     report << "    Function trap stubs installed: " << thunks.name_to_stub.size() << "\n";
+     report << "    Data import slots installed: " << thunks.name_to_data.size() << "\n";
+     std::uint32_t unity_free_got_after_thunks = 0;
+-    Read32(memory, kUnityBase + 0x00a89000u, unity_free_got_after_thunks);
++    for (const auto& relocation : unresolved) {
++        if (relocation.owner == "libunity.so" && relocation.symbol == "free") {
++            Read32(memory, relocation.target, unity_free_got_after_thunks);
++            break;
++        }
++    }
+     const auto free_stub_after_thunks = thunks.name_to_stub.find("free");
+     const std::uint32_t free_stub_after_thunks_address =
+         free_stub_after_thunks != thunks.name_to_stub.end() ? free_stub_after_thunks->second : 0u;
+@@ -9570,15 +9634,46 @@
+     Dynarmic::A32::Jit jit(config);
+     env.jit = &jit;
+ 
++    // Keep the legacy CNR-specific diagnostic overrides only for the known
++    // constructor layout and matching original instruction sequences.
++    std::vector<GuestInitializers> initializers(images.size());
++    for (std::size_t i = 0; i < images.size(); ++i) {
++        if (!ReadGuestInitializers(images[i], initializers[i])) {
++            report << "    ELF dynamic constructor metadata invalid: " << images[i].name << "\n";
++            return report.str();
++        }
++        report << "    ELF dynamic constructors: " << images[i].name
++               << " init=0x" << std::hex << initializers[i].init
++               << " array=0x" << initializers[i].array << std::dec
++               << " count=" << initializers[i].array_size / 4u << "\n";
++    }
++    const auto match_words = [&](std::uint32_t address, std::initializer_list<std::uint32_t> expected) {
++        for (const auto word : expected) {
++            std::uint32_t actual = 0;
++            if (!Read32(memory, address, actual) || actual != word) return false;
++            address += 4u;
++        }
++        return true;
++    };
++    const bool legacy_cnr_layout = images.size() == 3 &&
++        initializers[0].array == 0x73a4u && initializers[0].array_size == 4u &&
++        initializers[1].array == 0xa87f3cu && initializers[1].array_size == 940u &&
++        initializers[2].array == 0x3ac680u && initializers[2].array_size == 4u &&
++        match_words(kUnityBase + 0x939fd0u, {0xe92d4830u,0xe1a03000u,0xe59fe088u,0xe2434058u}) &&
++        match_words(kMainBase + 0x4d74u, {0xe92de000u,0xe92d1fffu,0xe3a03000u,0xe92d000cu}) &&
++        match_words(kUnityBase + 0x58ba4u, {0xe92d48f0u,0xe59f009cu,0xe59f109cu,0xe08f7000u});
+     constexpr std::uint32_t kUnityCxaThrow = kUnityBase + 0x00939fd0u;
+     constexpr std::uint32_t kMainUnwindRaise = kMainBase + 0x00004d74u;
+-    if (!WriteSvcStub(memory, kUnityCxaThrow, kSvcCxaThrowProbe) ||
+-        !WriteSvcStub(memory, kMainUnwindRaise, kSvcUnwindRaiseProbe)) {
+-        report << "    C++ exception probe setup: FAIL\n";
+-        return report.str();
+-    }
+-    report << "    C++ exception probes armed: throw=0x" << std::hex << kUnityCxaThrow
+-           << " unwind=0x" << kMainUnwindRaise << std::dec << "\n";
++    if (legacy_cnr_layout) {
++        if (!WriteSvcStub(memory, kUnityCxaThrow, kSvcCxaThrowProbe) ||
++            !WriteSvcStub(memory, kMainUnwindRaise, kSvcUnwindRaiseProbe)) {
++            report << "    C++ exception probe setup: FAIL\n";
++            return report.str();
++        }
++        report << "    C++ exception probes armed for verified legacy layout\n";
++    } else {
++        report << "    Legacy CNR exception probes skipped for different guest\n";
++    }
+ 
+     // Android's dynamic linker runs dependency init arrays before JNI_OnLoad or
+     // any exported entrypoints. The original Unity binary has hundreds of C++
+@@ -9591,11 +9686,16 @@
+ 
+     auto run_guest_initializer = [&](const char* owner, std::size_t index,
+                                      std::uint32_t function) -> bool {
+-        if (function == 0) {
++        if (function == 0 || function == 0xffffffffu) {
+             ++init_array_null_entries;
+             return true;
+         }
+-        if (std::string_view(owner) == "libunity.so" && function == kUnityBase + 0x00058ba4u) {
++        if (!GuestInitializerExecutable(images, function)) {
++            report << "    ELF initializer outside executable PT_LOAD: " << owner << "[" << index
++                   << "] fn=0x" << std::hex << function << std::dec << "\n";
++            return false;
++        }
++        if (legacy_cnr_layout && std::string_view(owner) == "libunity.so" && function == kUnityBase + 0x00058ba4u) {
+             report << "    ELF init-array diagnostic skip: libunity locale bootstrap fn=0x"
+                    << std::hex << function << std::dec << "\n";
+             return true;
+@@ -9724,12 +9824,21 @@
+         return true;
+     };
+ 
+-    // DT_NEEDED ordering for libunity: dependencies first, then libunity itself.
++    // Retain the existing three-library dependency order while discovering
++    // each library's own DT_INIT and DT_INIT_ARRAY from its ELF metadata.
+     env.live_ctor_trace = true;
+-    const bool elf_init_ok =
+-        run_init_array("libmono.so", kMonoBase + 0x003ac680u, 1) &&
+-        run_init_array("libmain.so", kMainBase + 0x000073a4u, 1) &&
+-        run_init_array("libunity.so", kUnityBase + 0x00a87f3cu, 940u / 4u);
++    bool elf_init_ok = images.size() == 3;
++    for (const auto index : {2u, 0u, 1u}) {
++        if (!elf_init_ok) break;
++        const auto& image = images[index];
++        const auto& init_info = initializers[index];
++        if (init_info.init && !run_guest_initializer(image.name.c_str(), 0, image.base + init_info.init)) {
++            elf_init_ok = false;
++            break;
++        }
++        if (init_info.array_size && !run_init_array(image.name.c_str(),
++                image.base + init_info.array, init_info.array_size / 4u)) elf_init_ok = false;
++    }
+     env.live_ctor_trace = false;
+     report << "    ELF init arrays: " << (elf_init_ok ? "PASS" : "FAIL")
+            << " executed=" << init_array_executed
+@@ -11880,7 +11989,7 @@
+     report << "\n";
+ 
+     SetGuestStartupStage("Initializing guest runtime");
+-    report << RunMonoBootstrapTrapProbe(memory, exports, unresolved, managedDirPath, packageCodePath,
++    report << RunMonoBootstrapTrapProbe(memory, images, exports, unresolved, managedDirPath, packageCodePath,
+                                          hostNativeWindow, hostJniEnv) << "\n";
+ 
+     const bool cross_ok = total.cross > 0 && total.unity_to_mono > 0;

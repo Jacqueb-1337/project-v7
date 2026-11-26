@@ -1,0 +1,111 @@
+--- a/cnr64-wrapper/src/shared_guest_linker.cpp
++++ b/cnr64-wrapper/src/shared_guest_linker.cpp
+@@ -5591,6 +5591,11 @@
+         if (DispatchGles(name)) return true;
+         if (DispatchZlib(name)) return true;
+ #endif
++        // Optional Google blocking-region instrumentation hooks. The guest
++        // scheduler already mediates blocking operations; no profiler is installed.
++        // These void hooks must not overwrite the guest return registers.
++        if (fast_name == "__google_potentially_blocking_region_begin" ||
++            fast_name == "__google_potentially_blocking_region_end") return true;
+         if (fast_name == "ALooper_forThread" || fast_name == "ALooper_prepare") {
+             Ret(kGuestLooperHandle);
+             return true;
+@@ -5734,6 +5739,16 @@
+         if (fast_name == "atan2f") { RetFloat(std::atan2(ArgFloat(0), ArgFloat(1))); return true; }
+         if (fast_name == "expf") { RetFloat(std::exp(ArgFloat(0))); return true; }
+         if (fast_name == "logf") { RetFloat(std::log(ArgFloat(0))); return true; }
++        if (fast_name == "exp2f") { RetFloat(std::exp2(ArgFloat(0))); return true; }
++        if (fast_name == "fabsf") { RetFloat(std::fabs(ArgFloat(0))); return true; }
++        if (fast_name == "log10f") { RetFloat(std::log10(ArgFloat(0))); return true; }
++        if (fast_name == "truncf") { RetFloat(std::trunc(ArgFloat(0))); return true; }
++        // ARM32 time_t is signed 32-bit. Convert before subtracting.
++        if (fast_name == "difftime") {
++            RetDouble(static_cast<double>(static_cast<std::int32_t>(Arg(0))) -
++                      static_cast<double>(static_cast<std::int32_t>(Arg(1))));
++            return true;
++        }
+         if (fast_name == "sqrtf") { RetFloat(std::sqrt(ArgFloat(0))); return true; }
+         if (fast_name == "ceilf") { RetFloat(std::ceil(ArgFloat(0))); return true; }
+         if (fast_name == "floorf") { RetFloat(std::floor(ArgFloat(0))); return true; }
+@@ -5945,6 +5960,16 @@
+             if (!Fits(a, n) || !Fits(b, n)) return false;
+             Ret(static_cast<std::uint32_t>(std::memcmp(memory_.data() + a, memory_.data() + b, n)));
+             return true;
++        }
++        if (fast_name == "strnlen") {
++            const auto address = Arg(0);
++            const auto maximum = Arg(1);
++            std::uint32_t n = 0;
++            for (; n < maximum; ++n) {
++                if (static_cast<std::uint64_t>(address) + n >= memory_.size()) return false;
++                if (!memory_[address + n]) break;
++            }
++            Ret(n); return true;
+         }
+         if (fast_name == "strlen") {
+             Ret(static_cast<std::uint32_t>(ReadFullCString(Arg(0)).size()));
+@@ -7424,6 +7449,54 @@
+             if (ok == EGL_TRUE) UnregisterEglHandle(Arg(0));
+             Ret(ok == EGL_TRUE ? 1u : 0u);
+             return true;
++        }
++        if (fast_name == "eglCreatePbufferSurface") {
++            const auto display = reinterpret_cast<EGLDisplay>(LookupEglHandle(Arg(0)));
++            std::uintptr_t raw = 0;
++            const bool valid = LookupEglHandleValue(Arg(1), raw);
++            const auto attrs = ReadEglAttribList(Arg(2));
++            const auto surface = display != EGL_NO_DISPLAY && valid
++                ? eglCreatePbufferSurface(display, reinterpret_cast<EGLConfig>(raw),
++                    attrs.empty() ? nullptr : attrs.data()) : EGL_NO_SURFACE;
++            if (surface != EGL_NO_SURFACE) owned_egl_surfaces_[surface] = display;
++            Ret(RegisterEglHandle(reinterpret_cast<std::uintptr_t>(surface))); return true;
++        }
++        if (fast_name == "eglGetCurrentContext") {
++            Ret(RegisterEglHandle(reinterpret_cast<std::uintptr_t>(eglGetCurrentContext()))); return true;
++        }
++        if (fast_name == "eglGetCurrentSurface") {
++            Ret(RegisterEglHandle(reinterpret_cast<std::uintptr_t>(eglGetCurrentSurface(static_cast<EGLint>(Arg(0)))))); return true;
++        }
++        if (fast_name == "eglQuerySurface") {
++            if (!Arg(3) || !Fits(Arg(3), 4)) return false;
++            EGLint value = 0;
++            const auto ok = eglQuerySurface(reinterpret_cast<EGLDisplay>(LookupEglHandle(Arg(0))),
++                reinterpret_cast<EGLSurface>(LookupEglHandle(Arg(1))), static_cast<EGLint>(Arg(2)), &value);
++            if (ok == EGL_TRUE) Write32(memory_, Arg(3), static_cast<std::uint32_t>(value));
++            Ret(ok == EGL_TRUE ? 1u : 0u); return true;
++        }
++        if (fast_name == "eglSwapInterval") {
++            Ret(eglSwapInterval(reinterpret_cast<EGLDisplay>(LookupEglHandle(Arg(0))),
++                static_cast<EGLint>(Arg(1))) == EGL_TRUE ? 1u : 0u); return true;
++        }
++        if (fast_name == "eglQueryString") {
++            const auto* value = eglQueryString(reinterpret_cast<EGLDisplay>(LookupEglHandle(Arg(0))),
++                static_cast<EGLint>(Arg(1)));
++            if (!value) { Ret(0); return true; }
++            // EGL owns its original string. Keep a stable guest copy per returned value.
++            auto existing = egl_query_strings_.find(value);
++            if (existing != egl_query_strings_.end()) { Ret(existing->second); return true; }
++            const auto address = Allocate(static_cast<std::uint32_t>(std::strlen(value) + 1));
++            if (!address || !WriteCString(address, value)) { Ret(0); return true; }
++            egl_query_strings_.emplace(value, address);
++            Ret(address); return true;
++        }
++        if (fast_name == "ANativeWindow_getWidth" || fast_name == "ANativeWindow_getHeight") {
++            auto* window = Arg(0) == kGuestNativeWindowHandle
++                ? static_cast<ANativeWindow*>(host_native_window_) : nullptr;
++            const int result = window ? (fast_name == "ANativeWindow_getWidth"
++                ? ANativeWindow_getWidth(window) : ANativeWindow_getHeight(window)) : -1;
++            Ret(static_cast<std::uint32_t>(result)); return true;
+         }
+         if (fast_name == "eglGetError") {
+             Ret(static_cast<std::uint32_t>(eglGetError()));
+@@ -9169,6 +9242,7 @@
+ #if defined(__ANDROID__)
+     std::uint32_t next_egl_handle_ = 0x71000000u;
+     std::unordered_map<std::uint32_t, std::uintptr_t> egl_handles_;
++    std::unordered_map<std::string, std::uint32_t> egl_query_strings_;
+     std::unordered_map<EGLSurface, EGLDisplay> owned_egl_surfaces_;
+     struct WindowEglState { EGLDisplay display; EGLConfig config; std::vector<EGLint> attributes; };
+     std::unordered_map<std::uint32_t, WindowEglState> window_egl_states_;

@@ -1591,11 +1591,22 @@ public final class MainActivity extends Activity {
         File unity = new File(files, "pv7-guest-libunity.so");
         File mono = new File(files, "pv7-guest-libmono.so");
         File managed = new File(files, "Data/Managed");
+        // Determine the actual packaged Unity data format, not the host's original engine.
+        final String dataMarker;
+        try (ZipFile apk = new ZipFile(getPackageCodePath())) {
+            if (apk.getEntry("assets/bin/Data/globalgamemanagers") != null) {
+                dataMarker = "globalgamemanagers";
+            } else if (apk.getEntry("assets/bin/Data/mainData") != null) {
+                dataMarker = "mainData";
+            } else {
+                throw new IllegalStateException("Packaged Unity data marker is missing");
+            }
+        }
         boolean ready = stamp.equals(prefs.getString(KEY_GUEST_ASSET_STAMP, ""))
                 && main.isFile() && main.length() > 0
                 && unity.isFile() && unity.length() > 0
                 && mono.isFile() && mono.length() > 0
-                && new File(files, "Data/mainData").isFile()
+                && new File(files, "Data/" + dataMarker).isFile()
                 && new File(managed, "mscorlib.dll").isFile();
         if (!ready) {
             setJavaStartupStage("Extracting guest assets");
@@ -1605,6 +1616,9 @@ public final class MainActivity extends Activity {
             unity = prepareGuestAsset("guest/libunity.so", "pv7-guest-libunity.so");
             mono = prepareGuestAsset("guest/libmono.so", "pv7-guest-libmono.so");
             managed = prepareGuestDataDirectory();
+            if (!new File(files, "Data/" + dataMarker).isFile()) {
+                throw new IllegalStateException("Extracted Unity data marker is missing: " + dataMarker);
+            }
             if (!prefs.edit().putString(KEY_GUEST_ASSET_STAMP, stamp).commit()) {
                 Log.w("PV7HOST", "Guest asset cache stamp could not be persisted");
             }
@@ -1704,9 +1718,14 @@ public final class MainActivity extends Activity {
 
         try {
             setJavaStartupStage("Preparing guest mods");
-            migrateLegacyCnrModsIfAvailable();
+            // CNR-specific migration and SAF notifications are opt-in via its module.
+            final android.content.pm.ProviderInfo modsProvider = getPackageManager()
+                    .resolveContentProvider(getPackageName() + ".documents", 0);
+            final boolean cnrModsEnabled = modsProvider != null
+                    && CNRModsDocumentsProvider.class.getName().equals(modsProvider.name);
+            if (cnrModsEnabled) migrateLegacyCnrModsIfAvailable();
             seedBootstrapFiles();
-            CNRModsDocumentsProvider.notifyRootChanged(this);
+            if (cnrModsEnabled) CNRModsDocumentsProvider.notifyRootChanged(this);
             setJavaStartupStage("Checking cached guest assets");
             prepareGuestFilesCached();
             if (activityResumed && !restartWhenStopped) { setJavaStartupStage("Starting translator"); runSafeBaseline(); }

@@ -63,4 +63,15 @@ class Pv7UntestedProfileTest {
             resolved.visibleModules.first { it.manifest.id == "unity-4.6-compat" }.badge)
         assertTrue(resolved.issues.isEmpty())
     }
+    @Test fun playableProfileSelectsRuntimeWithoutClaimingTested() {
+        val target = Pv7AppTarget("com.sakis25games.gunsandspurs", "1.3.3", setOf("armeabi-v7a"), Pv7EngineFingerprint("unity", "5.6.1f1", "libunity.so"))
+        val mod = Pv7ModuleManifest(id = "gunsandspurs-compat", name = "Guns", version = "0.1.0", kind = Pv7ModuleKind.GAME, description = "Experimental", targets = Pv7TargetSelector(packageIds = listOf(target.packageId)))
+        val profile = Pv7CompatibilityProfile(id = "guns", packageId = target.packageId, tested = false, playable = true, recommendedModules = listOf(mod.id))
+        val result = Pv7CatalogResolver.resolve(target, listOf(mod), listOf(profile))
+        assertEquals(profile, result.profile)
+        assertEquals(setOf(mod.id), result.selectedModuleIds)
+        assertEquals(Pv7ModuleBadge.ENGINE_SUGGESTED, result.visibleModules.single().badge)
+        assertTrue(result.issues.isEmpty())
+        assertNull(Pv7CatalogResolver.resolve(target, listOf(mod), listOf(profile.copy(playable = false))).profile)
+    }
 }

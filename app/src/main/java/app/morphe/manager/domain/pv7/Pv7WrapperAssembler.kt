@@ -111,8 +111,17 @@ class Pv7WrapperAssembler {
         }
 
         val managed = File(dataDir, "Managed")
-        if (!File(dataDir, "mainData").isFile) {
-            throw IOException("Unity Data payload is missing mainData")
+        // Unity 4.6 Data uses mainData; Unity 5.x Data uses
+        // globalgamemanagers instead (Guns and Spurs 5.6.1f1 has no
+        // mainData). Accept either marker according to the detected
+        // Unity version; mscorlib.dll is still required for both.
+        val dataMarker = if (target.engine?.version?.startsWith("5.6.") == true) {
+            "globalgamemanagers"
+        } else {
+            "mainData"
+        }
+        if (!File(dataDir, dataMarker).isFile) {
+            throw IOException("Unity Data payload is missing $dataMarker")
         }
         if (!File(managed, "mscorlib.dll").isFile) {
             throw IOException("Unity Managed payload is missing mscorlib.dll")
