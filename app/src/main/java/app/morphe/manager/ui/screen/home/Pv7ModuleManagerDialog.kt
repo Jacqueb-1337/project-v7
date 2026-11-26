@@ -50,10 +50,13 @@ fun Pv7ModuleManagerDialog(onDismiss: () -> Unit) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Checkbox(module.id in selected, { checked ->
                                 selected = if (checked) selected + module.id else selected - module.id
-                            }, enabled = !busy && module.id !in available)
+                            }, enabled = !busy)
                             Column(Modifier.weight(1f)) {
                                 Text(module.name)
-                                Text(if (module.id in available) "Available offline" else "Not downloaded", style = MaterialTheme.typography.bodySmall)
+                                val offline = remember(modules, available, module.id) {
+                                    runCatching { pv7DependencyClosure(modules, setOf(module.id)).all { it.id in available } }.getOrDefault(false)
+                                }
+                                Text(if (offline) "Available offline" else "Download required", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
