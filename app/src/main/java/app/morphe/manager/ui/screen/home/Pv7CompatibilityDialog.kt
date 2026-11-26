@@ -175,6 +175,45 @@ internal fun Pv7CompatibilityDialog(
                 }
             }
 
+            target.runtimeAudit?.let { audit ->
+                var expanded by remember(audit) { mutableStateOf(false) }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Runtime compatibility audit", style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold)
+                        Text("Static Unity ARM32 import coverage (advisory only)", style = MaterialTheme.typography.bodySmall)
+                        if (audit.abi != null) {
+                            Text("${audit.importCount} imports | ${audit.guestResolved} guest-resolved | ${audit.handlerMatches} bridge matches",
+                                style = MaterialTheme.typography.bodySmall)
+                            Text("${audit.gaps.size} potential missing handlers | ${audit.dataSymbols.size} data symbols to review",
+                                color = if (audit.gaps.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (!audit.complete) Text("Inspection incomplete", color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                        audit.notes.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        Text("A symbol match does not guarantee correct behavior. Dynamic lookups and JNI calls are not audited.",
+                            style = MaterialTheme.typography.bodySmall)
+                        if (audit.gaps.isNotEmpty() || audit.dataSymbols.isNotEmpty()) {
+                            OutlinedButton(onClick = { expanded = !expanded }) {
+                                Text(if (expanded) "Hide symbol details" else "View symbol details")
+                            }
+                            if (expanded) {
+                                (audit.gaps.map { it to "Missing handler" } + audit.dataSymbols.map { it to "Data / untyped" })
+                                    .forEach { (gap, kind) ->
+                                        Text(gap.symbol, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                        Text(kind + (if (gap.weak) " (weak import)" else "") + " | " + gap.libraries.joinToString(),
+                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
             Text("Catalog repository (advanced)", style = MaterialTheme.typography.titleSmall)
             Text(
                 "Defaults to the official PV7 catalog. To test a fork, enter owner/repository " +

@@ -82,7 +82,8 @@ data class Pv7AppTarget(
     val packageId: String,
     val versionName: String?,
     val abis: Set<String> = emptySet(),
-    val engine: Pv7EngineFingerprint? = null
+    val engine: Pv7EngineFingerprint? = null,
+    val runtimeAudit: Pv7RuntimeAudit? = null
 )
 
 enum class Pv7ModuleBadge {
