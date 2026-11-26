@@ -1,3 +1,10 @@
+## [1.43.1](https://github.com/Jacqueb-1337/project-v7/compare/v1.43.0...v1.43.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **catalog:** label Guns and Spurs as experimental playable ([dff9a62](https://github.com/Jacqueb-1337/project-v7/commit/dff9a62587f825a5dc67c2a27f200513c2696e46))
+
 # [1.43.0](https://github.com/Jacqueb-1337/project-v7/compare/v1.42.0...v1.43.0) (2026-11-26)
 
 
